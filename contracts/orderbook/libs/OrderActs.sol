@@ -24,7 +24,7 @@ library OrderActs {
     /// 1. Selling an NFT if order is `bid`
     /// 2. Buying an NFT if order is `ask`
     struct Fill {
-        address actor;
+        address actor; // msg.sender
     }
 
     // https://eips.ethereum.org/EIPS/eip-712#definition-of-hashstruct:

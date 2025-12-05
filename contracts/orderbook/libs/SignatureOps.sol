@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.30;
 
+import {console} from "forge-std/console.sol";
+
 library SignatureOps {
     // --------------
     // ERRORS

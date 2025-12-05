@@ -13,6 +13,7 @@ contract OrderEngine {
     using SigOps for SigOps.Signature;
 
     bytes32 public immutable DOMAIN_SEPARATOR;
+
     mapping(address => mapping(uint256 => bool)) private _isUserOrderNonceValid;
 
     constructor() {
@@ -37,6 +38,8 @@ contract OrderEngine {
     function settle(OrderActs.Fill calldata fill, OrderActs.Order calldata order, SigOps.Signature calldata sig)
         external
     {
+        require(msg.sender == fill.actor, "Fill: Actor must be the sender"); // Fill request must be from taker
+
         // Verify
         (uint8 v, bytes32 r, bytes32 s) = sig.vrs();
         _verifyOrder(order, v, r, s);

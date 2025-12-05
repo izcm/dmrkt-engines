@@ -7,6 +7,7 @@ import {console} from "forge-std/console.sol";
 // local
 import "orderbook/OrderEngine.sol";
 import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
 contract OrderEngineSignatureTest is Test {
     using OrderActs for OrderActs.Order;
@@ -36,15 +37,20 @@ contract OrderEngineSignatureTest is Test {
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, digest);
 
-        console.logBytes(abi.encodePacked(r, s, v));
+        // sig + fill struct to feed `settle()`
+        SigOps.Signature memory sig = SigOps.Signature({v: v, r: r, s: s});
+        address test = ecrecover(digest, v, r, s);
 
-        // vm.startPrank(signer);
+        OrderActs.Fill memory fill = makeFill(user);
+
+        vm.startPrank(user);
+        engine.settle(fill, order, sig);
+        vm.stopPrank();
     }
 
     // --------------
     // HELPERS
     // --------------
-
     function makeOrder(address actor) internal view returns (OrderActs.Order memory) {
         return makeOrder(actor, 0);
     }
@@ -67,11 +73,14 @@ contract OrderEngineSignatureTest is Test {
         });
     }
 
-    function makeFill() internal {}
+    // `settle()` requires fill.actor = msg.sender
+    function makeFill(address actor) internal returns (OrderActs.Fill memory) {
+        return OrderActs.Fill({actor: actor});
+    }
 
-    function makeDigest(OrderActs.Order memory o) internal returns (bytes32) {
+    function makeDigest(OrderActs.Order memory o) internal view returns (bytes32) {
         bytes32 msgHash = o.hash();
 
-        return keccak256(abi.encodePacked("\x19\x01", engine.DOMAIN_SEPARATOR, msgHash));
+        return keccak256(abi.encodePacked("\x19\x01", engine.DOMAIN_SEPARATOR(), msgHash));
     }
 }
