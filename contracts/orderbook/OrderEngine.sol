@@ -6,6 +6,7 @@ import {ReentrancyGuard} from "@openzeppelin/utils/ReentrancyGuard.sol";
 // local
 import "./libs/OrderActs.sol";
 import {SignatureOps as SigOps} from "./libs/SignatureOps.sol";
+import {console} from "forge-std/console.sol";
 
 // ===== ERRORS =====
 error UnauthorizedFillActor();
@@ -18,6 +19,7 @@ contract OrderEngine is ReentrancyGuard {
     using SigOps for SigOps.Signature;
 
     bytes32 public immutable DOMAIN_SEPARATOR;
+    address public immutable WETH;
 
     mapping(address => mapping(uint256 => bool)) private _isUserOrderNonceInvalid;
 
@@ -35,6 +37,8 @@ contract OrderEngine is ReentrancyGuard {
                 address(this)
             )
         );
+
+        WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     }
 
     // ===== EXTERNAL FUNCTIONS =====
@@ -69,6 +73,7 @@ contract OrderEngine is ReentrancyGuard {
         require(!_isUserOrderNonceInvalid[order.actor][order.nonce], InvalidNonce());
 
         // Whitelisted currency
+        require(order.currency == WETH, CurrencyNotWhitelisted());
 
         // Verify Signature
         SigOps.verify(DOMAIN_SEPARATOR, order.hash(), order.actor, v, r, s);

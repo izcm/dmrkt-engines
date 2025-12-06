@@ -83,6 +83,7 @@ contract OrderEngineSignatureTest is Test {
             actor: actor,
             isCollectionBid: false,
             collection: collection,
+            currency: engine.WETH(),
             tokenId: 1,
             price: price,
             start: 0,

@@ -15,6 +15,7 @@ library OrderActs {
         address collection;
         uint256 tokenId; // specific token for bid / ask, ignored if isCollectionBid = true
         uint256 price;
+        address currency;
         uint64 start;
         uint64 end;
         uint256 nonce;
@@ -41,6 +42,7 @@ library OrderActs {
                 o.actor,
                 o.isCollectionBid,
                 o.collection,
+                o.currency,
                 o.tokenId,
                 o.price,
                 o.side,
