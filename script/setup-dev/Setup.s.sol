@@ -17,13 +17,10 @@ contract Setup is Script, Config, Test {
     OrderEngine public orderEngine;
 
     function run() external {
-        string memory path = "myfile.txt";
-        assertTrue(vm.exists(path));
-        /*
-        _loadConfig("../../deployments.toml", true);
-
         uint chainId = block.chainid;
         console.log("Deploying to chain: ", chainId);
+
+        _loadConfig("deployments.toml", true);
 
         // config addresses
         address bayc = config.get("bayc").toAddress();
@@ -39,6 +36,5 @@ contract Setup is Script, Config, Test {
         console.log(
             "\nDeployment complete! Addresses saved to deployments.toml"
         );
-        */
     }
 }
