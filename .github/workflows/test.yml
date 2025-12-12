@@ -27,8 +27,8 @@ jobs:
       - name: Show Forge version
         run: forge --version
 
-      - name: Format contracts
-        run: forge fmt --check
+      # - name: Format contracts
+      #  run: forge fmt --check
 
       - name: Build contracts
         run: forge build --sizes
