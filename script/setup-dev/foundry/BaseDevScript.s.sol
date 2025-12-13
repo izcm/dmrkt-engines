@@ -12,7 +12,7 @@ import {Script} from "forge-std/Script.sol";
 */
 abstract contract BaseDevScript is Script {
     // DEV ONLY - anvil default funded accounts
-    uint256[4] internal DEV_KEYS = [1, 2, 3, 4];
+    uint256[7] internal DEV_KEYS = [1, 2, 3, 4, 5, 6, 7];
 
     // addr derived from private key (here 1, 2, 3, 4)
     function devAddr(uint256 i) internal view returns (address) {

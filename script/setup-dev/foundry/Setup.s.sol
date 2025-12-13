@@ -8,6 +8,7 @@ import {console} from "forge-std/console.sol";
 // local
 import {BaseDevScript} from "dev-script/BaseDevScript.s.sol";
 import {OrderEngine} from "orderbook/OrderEngine.sol";
+import {DMrktGremlin as DNFT} from "nfts/DMrktGremlin.sol";
 
 // TODO: cryptopunks is not erc721 compatible, custom wrapper l8r?
 // https://docs.openzeppelin.com/contracts/4.x/api/token/erc721
@@ -22,6 +23,21 @@ interface IWETH {
     function transfer(address to, uint256 amount) external returns (bool);
 }
 
+/*
+    Note to self: 
+
+    `new Orderengine()`: 
+    bytes memory initCode = abi.encodePacked(
+    type(OrderEngine).creationCode,
+    abi.encode(args)
+    );
+
+    address engine;
+    assembly {
+    engine := create(0, add(initCode, 0x20), mload(initCode))
+    }
+ */
+
 contract Setup is BaseDevScript, Config {
     uint256 immutable DEV_BOOTSTRAP_ETH = 10000 ether;
 
@@ -35,14 +51,56 @@ contract Setup is BaseDevScript, Config {
         _loadConfig("deployments.toml", true);
 
         uint256 chainId = block.chainid;
+
         console.log("Deploying to chain: %s", chainId);
 
-        address azuki = config.get("nft_address").toAddress();
+        address funder = config.get("funder").toAddress();
         address weth = config.get("weth").toAddress();
+
+        console.log("----------");
+        console.log("Funder address: %s", funder);
+        console.log("Funders ETH balance: %s", funder.balance);
+        console.log("----------");
 
         // --------------------------------
         // PHASE 1: SETUP CONTRACTS
         // --------------------------------
+
+        // deploy dev nfts as funder
+        uint256 funderPK = uint256(uint256(vm.envUint("PRIVATE_KEY")));
+
+        // since the script uses the same private key its not necessary but just done to be more generic
+
+        // deploy dmrkt nft and marketplace
+        vm.startBroadcast(funderPK);
+        OrderEngine oe = new OrderEngine();
+        DNFT dNft = new DNFT();
+        vm.stopBroadcast();
+
+        console.log("----------");
+        console.log("OrderEngine Deployed: %s", address(oe));
+        console.log("DNFT Deployed: %s", address(dNft));
+        console.log("----------");
+
+        // --------------------------------
+        // PHASE 2: FUND DEV ADDRS
+        // --------------------------------
+
+        // use devAddresses for local fork
+        if (chainId == 1337) {
+            uint256 distributableEth = (funder.balance * 4) / 5;
+            uint256 devBootstrapEth = distributableEth / DEV_KEYS.length;
+
+            vm.startBroadcast(funderPK);
+            for (uint256 i = 1; i < DEV_KEYS.length; i++) {
+                address a = devAddr(i);
+                (bool ok, ) = payable(a).call{value: devBootstrapEth}("");
+                if (!ok) {
+                    console.log("Error sending eth to: %s", a);
+                }
+            }
+            vm.stopBroadcast();
+        }
 
         // deploy nft contract
         // select tokens
@@ -66,10 +124,10 @@ contract Setup is BaseDevScript, Config {
         // impersonate each owner
         for (uint256 i = 0; i < length; i++) {
             vm.prank(owners[i]);
-            // transfer selected tokens to some devAddr
+            // transfer selected tokens to some a
             IERC721(azuki).transferFrom(
                 owners[i], // ← ACTUAL OWNER
-                devAddr(1), // ← YOU
+                a(1), // ← YOU
                 ids[i]
             );
         }

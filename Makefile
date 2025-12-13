@@ -21,8 +21,8 @@ dev-setup-script:dev-fork
 	forge script $(PATH_DEV_SETUP)/foundry/Setup.s.sol \
 		--rpc-url http://127.0.0.1:8545 \
 		--broadcast \
-		--sender $(ANVIL_SENDER) \
-		--private-key $(ANVIL_PK)
+		--sender $(SENDER) \
+		--private-key $(PRIVATE_KEY)
 
 	
 
