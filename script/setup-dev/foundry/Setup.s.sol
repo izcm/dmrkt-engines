@@ -88,7 +88,7 @@ contract Setup is BaseDevScript, Config {
 
         // use devAddresses for local fork
         if (chainId == 1337) {
-            uint256 distributableEth = (funder.balance * 4) / 5;
+            uint256 distributableEth = (funder.balance * 9) / 10;
             uint256 devBootstrapEth = distributableEth / DEV_KEYS.length;
 
             vm.startBroadcast(funderPK);
@@ -100,7 +100,18 @@ contract Setup is BaseDevScript, Config {
                 }
             }
             vm.stopBroadcast();
+
+            // wrap ETH => WETH
+            uint256 wethWrapAmount = devBootstrapEth / 2;
+
+            for (uint256 i = 1; i < DEV_KEYS.length; i++) {
+                vm.startBroadcast(i);
+                IWETH(weth).deposit{value: wethWrapAmount}();
+                vm.stopBroadcast();
+            }
         }
+
+        // for other chain use another system than BaseDevScript keys
 
         // deploy nft contract
         // select tokens
@@ -171,20 +182,25 @@ contract Setup is BaseDevScript, Config {
 
     function selectTokens(
         address tokenContract,
-        uint256 roof,
+        uint256 scanLimit,
+        uint256 targetCount,
         uint8 mod
     ) internal pure returns (uint256[] memory) {
         uint256 count = 0;
-        uint256[] memory ids = new uint256[](roof);
+        uint256[] memory ids = new uint256[](targetCount);
 
-        // start at 1 cuz we don't care enough to check if contract skips #0 / no
-        for (uint256 i = 1; i <= roof; i++) {
+        for (uint256 i = 0; i < scanLimit && count < targetCount; i++) {
             bytes32 h = keccak256(abi.encode(tokenContract, i));
             if (uint256(h) % mod == 0) {
                 ids[count] = i;
                 count++;
             }
         }
+
+        assembly {
+            mstore(ids, count)
+        }
+
         return ids;
     }
 
