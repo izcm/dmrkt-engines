@@ -79,31 +79,31 @@ contract Setup is BaseDevScript, Config {
         console.log("------------------------------------");
 
         uint256 distributableEth = (funder.balance * 4) / 5;
-        uint256 recipientLen;
+        uint256 participantLen;
 
         if (chainId == 1337) {
-            recipientLen = DEV_KEYS.length;
+            participantLen = DEV_KEYS.length;
         } else {
             revert("account bootstrap not configured for this chain");
         }
 
-        uint256[] memory recipientPKs = new uint256[](recipientLen);
+        uint256[] memory participantPKs = new uint256[](participantLen);
 
         if (chainId == 1337) {
-            for (uint256 i = 0; i < recipientLen; i++) {
-                recipientPKs[i] = DEV_KEYS[i];
+            for (uint256 i = 0; i < participantLen; i++) {
+                participantPKs[i] = DEV_KEYS[i];
             }
         } else {
             revert("account bootstrap not configured for this chain");
         }
 
         // amount to fund each account
-        uint256 bootstrapEth = distributableEth / recipientLen;
+        uint256 bootstrapEth = distributableEth / participantLen;
 
         vm.startBroadcast(funderPK);
 
-        for (uint256 i = 0; i < recipientLen; i++) {
-            address a = resolveAddr(recipientPKs[i]);
+        for (uint256 i = 0; i < participantLen; i++) {
+            address a = resolveAddr(participantPKs[i]);
 
             logBalance("PRE ", a);
 
@@ -127,11 +127,11 @@ contract Setup is BaseDevScript, Config {
 
         uint256 wethWrapAmount = bootstrapEth / 2;
 
-        for (uint256 i = 1; i < recipientLen; i++) {
-            address a = resolveAddr(recipientPKs[i]);
+        for (uint256 i = 1; i < participantLen; i++) {
+            address a = resolveAddr(participantPKs[i]);
             logTokenBalance("PRE  WETH", a, IWETH(weth).balanceOf(a));
 
-            vm.startBroadcast(recipientPKs[i]);
+            vm.startBroadcast(participantPKs[i]);
             IWETH(weth).deposit{value: wethWrapAmount}();
             vm.stopBroadcast();
 
@@ -141,34 +141,34 @@ contract Setup is BaseDevScript, Config {
         }
 
         // --------------------------------
-        // PHASE 3: MINT NFTS
+        // PHASE 3: MINT NFTs
         // --------------------------------
-        logSection("MINT NFTS");
+        logSection("MINT NFTs");
 
         mintTokens(
-            recipientPKs,
+            participantPKs,
             IMintable721(address(dNft)),
             dNft.MAX_SUPPLY()
         );
 
         logSection("DNFT FINAL BALANCES");
 
-        for (uint256 i = 0; i < recipientPKs.length; i++) {
-            address user = resolveAddr(recipientPKs[i]);
+        for (uint256 i = 0; i < participantPKs.length; i++) {
+            address user = resolveAddr(participantPKs[i]);
             uint256 bal = IERC721(address(dNft)).balanceOf(user);
 
             logTokenBalance("DNFT", user, bal);
         }
     }
 
-    // for dnft scanLimit = maxSupply
+    // for dnft limit = maxSupply
     function mintTokens(
         uint256[] memory pks,
         IMintable721 nft,
-        uint256 scanLimit
+        uint256 limit
     ) internal {
         // in this script we know i = tokenid for token minted (no previous mints)
-        for (uint256 i = 0; i < scanLimit; i++) {
+        for (uint256 i = 0; i < limit; i++) {
             bytes32 h = keccak256(abi.encode(address(nft), i));
             uint256 j = uint256(h) % pks.length;
 
