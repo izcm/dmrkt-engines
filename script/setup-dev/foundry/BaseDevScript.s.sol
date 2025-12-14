@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {Script} from "forge-std/Script.sol";
+import {console} from "forge-std/console.sol";
 
 /*
 1) Start anvil and copy ONE funded account + private key
@@ -12,7 +13,15 @@ import {Script} from "forge-std/Script.sol";
 */
 abstract contract BaseDevScript is Script {
     // DEV ONLY - anvil default funded accounts
-    uint256[7] internal DEV_KEYS = [1, 2, 3, 4, 5, 6, 7];
+    uint256[7] internal DEV_KEYS = [
+        10000000,
+        20000000,
+        30000000,
+        40000000,
+        50000000,
+        60000000,
+        70000000
+    ];
 
     // addr derived from private key (here 1, 2, 3, 4)
     function devAddr(uint256 i) internal view returns (address) {
@@ -30,13 +39,6 @@ abstract contract BaseDevScript is Script {
         revert("unknown dev addr");
     }
 
-    function fundDevAccounts(uint256 amount) internal {
-        for (uint256 i; i < DEV_KEYS.length; i++) {
-            address a = devAddr(i);
-            vm.deal(a, amount);
-        }
-    }
-
     function countUntilZero(
         uint256[] memory arr
     ) internal pure returns (uint256) {
@@ -45,5 +47,28 @@ abstract contract BaseDevScript is Script {
             i++;
         }
         return i;
+    }
+
+    // --- LOG HELPERS ---
+    function logBalance(string memory label, address a) internal view {
+        console.log("%s | %s | balance: %s", label, a, a.balance);
+    }
+
+    function logDeployment(
+        string memory label,
+        address deployed
+    ) internal view {
+        console.log(
+            "DEPLOY | %s | %s | codeSize: %s",
+            label,
+            deployed,
+            deployed.code.length
+        );
+    }
+
+    function logSection(string memory title) internal pure {
+        console.log("------------------------------------");
+        console.log(title);
+        console.log("------------------------------------");
     }
 }

@@ -25,9 +25,9 @@ interface IWETH {
 }
 
 /*
-    Note to self: 
+    Note to self:
 
-    `new Orderengine()`: 
+    `new Orderengine()`:
     bytes memory initCode = abi.encodePacked(
     type(OrderEngine).creationCode,
     abi.encode(args)
@@ -45,89 +45,122 @@ contract Setup is BaseDevScript, Config {
     OrderEngine public orderEngine;
 
     function run() external {
+        _loadConfig("deployments.toml", true);
+        uint256 funderPK = uint256(uint256(vm.envUint("PRIVATE_KEY")));
+
+        address a = config.get("addr").toAddress();
+
+        console.log("%s PRE BALANCE: %s", a, a.balance);
+
+        vm.startBroadcast(funderPK);
+        payable(a).call{value: 1 ether}(abi.encode(""));
+        vm.stopBroadcast();
+
+        console.log("%s POST BALANCE: %s", a, a.balance);
+
+        a = devAddr(1);
+        console.log(a);
+
+        console.log("%s PRE BALANCE: %s", a, a.balance);
+
+        vm.startBroadcast(funderPK);
+        payable(a).call{value: 1 ether}(abi.encode(""));
+        vm.stopBroadcast();
+
+        console.log("%s POST BALANCE: %s", a, a.balance);
+
         // --------------------------------
         // PHASE 0: LOAD CONFIG
         // --------------------------------
-        _loadConfig("deployments.toml", true);
 
-        logSection("CONFIG & CONTRACT DEPLOYMENT");
+        /*
+            _loadConfig("deployments.toml", true);
 
-        uint256 chainId = block.chainid;
+            uint256 chainId = block.chainid;
 
-        console.log("ChainId: %s", chainId);
+            console.log("Deploying to chain: %s", chainId);
 
-        address funder = config.get("funder").toAddress();
-        address weth = config.get("weth").toAddress();
+            address funder = config.get("funder").toAddress();
+            address weth = config.get("weth").toAddress();
 
-        // --------------------------------
-        // PHASE 1: SETUP CONTRACTS
-        // --------------------------------
+            console.log("----------");
+            console.log("Funder address: %s", funder);
+            console.log("Funders ETH balance: %s", funder.balance);
+            console.log("----------");
 
-        // deploy dev nfts as funder
-        uint256 funderPK = uint256(uint256(vm.envUint("PRIVATE_KEY")));
+            // --------------------------------
+            // PHASE 1: SETUP CONTRACTS
+            // --------------------------------
 
-        // since the script uses the same private key its not necessary but just done to be more generic
+            // deploy dev nfts as funder
+            uint256 funderPK = uint256(uint256(vm.envUint("PRIVATE_KEY")));
 
-        // deploy dmrkt nft and marketplace
-        vm.startBroadcast(funderPK);
-        OrderEngine oe = new OrderEngine();
-        DNFT dNft = new DNFT();
-        vm.stopBroadcast();
+            // since the script uses the same private key its not necessary but just done to be more generic
 
-        logDeployment("OrderEngine", address(oe));
-        logDeployment("DNFT", address(dNft));
+            // deploy dmrkt nft and marketplace
+            vm.startBroadcast(funderPK);
+            OrderEngine oe = new OrderEngine();
+            DNFT dNft = new DNFT();
+            vm.stopBroadcast();
 
-        // --------------------------------
-        // PHASE 2: FUND DEV ADDRS
-        // --------------------------------
-        logSection("BOOTSTRAP DEV ACCOUNTS");
-        console.log("------------------------------------");
-        console.log("FUNDER");
-        console.log("ADDR  | %s", funder);
-        console.log("BAL   | %s", funder.balance);
-        console.log("------------------------------------");
+            console.log("----------");
+            console.log("OrderEngine Deployed: %s", address(oe));
+            console.log("DNFT Deployed: %s", address(dNft));
+            console.log("----------");
 
-        uint256 distributableEth = (funder.balance * 4) / 5;
-        uint256 bootstrapAccountCount;
+            // --------------------------------
+            // PHASE 2: FUND DEV ADDRS
+            // --------------------------------
+            uint256 distributableEth = (funder.balance * 4) / 5;
 
-        if (chainId == 1337) {
-            bootstrapAccountCount = DEV_KEYS.length;
-        } else {
-            revert("account bootstrap not configured for this chain");
-        }
+            // wrap ETH => WETH
+            /*
+            vm.startBroadcast(funderPK);
+            IWETH(weth).deposit{value: distributableEth}();
+            console.log("FUNDERS WETH: ", IWETH(weth).balanceOf(funder));
+            vm.stopBroadcast();
 
-        uint256 devBootstrapEth = distributableEth / bootstrapAccountCount;
+            // use devAddresses for local fork
+            uint256 bootstrapAccountCount;
 
-        vm.startBroadcast(funderPK);
-
-        for (uint256 i = 1; i < bootstrapAccountCount; i++) {
-            address a = devAddr(i);
-
-            logBalance("PRE ", a);
-
-            (bool ok, ) = payable(a).call{value: 0.1 ether}("");
-
-            if (!ok) {
-                console.log("TRANSFER FAILED -> %s", a);
+            if (chainId == 1337) {
+                bootstrapAccountCount = DEV_KEYS.length;
             } else {
-                logBalance("POST", a);
+                revert("account bootstrap not configured for this chain");
             }
 
-            console.log("------------------------------------");
+            uint256 devBootstrapEth = distributableEth / bootstrapAccountCount;
+
+            */
+        /*vm.startBroadcast(funderPK);
+        console.log("THE ACTUAL SENDER: ", msg.sender);
+        for (uint256 i = 1; i < bootstrapAccountCount; i++) {
+            address a = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
+            console.log("USER BALANCE BEFORE: %s", a.balance);
+            payable(a).call{value: 0.1 ether}(abi.encode(""));
+            //(bool ok, ) = payable(a).call{value: devBootstrapEth}("");
+            /*if (!ok) {
+                console.log("Error sending eth to: %s", a);
+            } else {
+                console.log(
+                    "%s ETH transferred to %s",
+                    devAddr(i).balance / 1 ether,
+                    devAddr(i)
+                );
+            }
+            console.log("%s ETH transferred to %s", a.balance, a);
         }
+        vm.stopBroadcast();*/
 
-        vm.stopBroadcast();
-
-        // wrap ETH => WETH
         /*
+        // wrap ETH => WETH
         uint256 wethWrapAmount = devBootstrapEth / 2;
 
         for (uint256 i = 1; i < bootstrapAccountCount; i++) {
             vm.startBroadcast(i);
             IWETH(weth).deposit{value: wethWrapAmount}();
             vm.stopBroadcast();
-        }
-        */
+        }*/
 
         // deploy nft contract
         // select tokens
@@ -196,10 +229,7 @@ contract Setup is BaseDevScript, Config {
         */
     }
 
-    function resolveDevKey(
-        address who,
-        uint256 chainId
-    ) internal view returns (uint256) {
+    function resolveDevKey(address who, uint256 chainId) internal view returns (uint256) {
         if (chainId == 1337) {
             return devKey(who);
         } else {
@@ -209,12 +239,11 @@ contract Setup is BaseDevScript, Config {
         }
     }
 
-    function selectTokens(
-        address tokenContract,
-        uint256 scanLimit,
-        uint256 targetCount,
-        uint8 mod
-    ) internal pure returns (uint256[] memory) {
+    function selectTokens(address tokenContract, uint256 scanLimit, uint256 targetCount, uint8 mod)
+        internal
+        pure
+        returns (uint256[] memory)
+    {
         uint256 count = 0;
         uint256[] memory ids = new uint256[](targetCount);
 
@@ -233,10 +262,7 @@ contract Setup is BaseDevScript, Config {
         return ids;
     }
 
-    function readOwnerOf(
-        address tokenContract,
-        uint256 tokenId
-    ) internal view returns (address) {
+    function readOwnerOf(address tokenContract, uint256 tokenId) internal view returns (address) {
         return IERC721(tokenContract).ownerOf(tokenId);
     }
 }
