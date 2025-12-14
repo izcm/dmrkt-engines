@@ -10,6 +10,7 @@ import {BaseDevScript} from "dev-script/BaseDevScript.s.sol";
 import {OrderEngine} from "orderbook/OrderEngine.sol";
 import {DMrktGremlin as DNFT} from "nfts/DMrktGremlin.sol";
 
+// TODO: import IERC721 + IERC20 from OZ libs
 // interfaces
 interface IERC721 {
     function setApprovalForAll(address operator, bool approved) external;
@@ -26,10 +27,19 @@ interface IMintable721 {
     function mint(address to) external;
 }
 
-interface IWETH {
-    function deposit() external payable;
+interface IERC20 {
     function transfer(address to, uint256 amount) external returns (bool);
     function balanceOf(address who) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function allowance(
+        address owner,
+        address spender
+    ) external returns (uint256);
+}
+
+interface IWETH is IERC20 {
+    function deposit() external payable;
+    function withdraw(uint256) external;
 }
 
 // NOTE:
@@ -130,16 +140,17 @@ contract Setup is BaseDevScript, Config {
         logSection("WRAP ETH => WETH");
 
         uint256 wethWrapAmount = bootstrapEth / 2;
+        IWETH wethToken = IWETH(weth);
 
         for (uint256 i = 1; i < participantLen; i++) {
             address a = resolveAddr(participantPKs[i]);
-            logTokenBalance("PRE  WETH", a, IWETH(weth).balanceOf(a));
+            logTokenBalance("PRE  WETH", a, wethToken.balanceOf(a));
 
             vm.startBroadcast(participantPKs[i]);
-            IWETH(weth).deposit{value: wethWrapAmount}();
+            wethToken.deposit{value: wethWrapAmount}();
             vm.stopBroadcast();
 
-            logTokenBalance("POST WETH", a, IWETH(weth).balanceOf(a));
+            logTokenBalance("POST WETH", a, wethToken.balanceOf(a));
 
             logSeperator();
         }
@@ -149,9 +160,11 @@ contract Setup is BaseDevScript, Config {
         // --------------------------------
         logSection("MINT NFTs");
 
+        IERC721 nftToken = IERC721(address(dNft));
+
         mintTokens(
             participantPKs,
-            IMintable721(address(dNft)),
+            IMintable721(address(nftToken)),
             dNft.MAX_SUPPLY()
         );
 
@@ -159,7 +172,7 @@ contract Setup is BaseDevScript, Config {
 
         for (uint256 i = 0; i < participantLen; i++) {
             address user = resolveAddr(participantPKs[i]);
-            uint256 bal = IERC721(address(dNft)).balanceOf(user);
+            uint256 bal = nftToken.balanceOf(user);
 
             logTokenBalance("DNFT", user, bal);
         }
@@ -170,18 +183,60 @@ contract Setup is BaseDevScript, Config {
         logSection("APPROVE MARKETPLACE FOR NFTs");
 
         address marketplace = address(orderEngine);
-        address nft = address(dNft);
 
         for (uint256 i = 0; i < participantLen; i++) {
             vm.startBroadcast(participantPKs[i]);
-            IERC721(nft).setApprovalForAll(marketplace, true);
+            nftToken.setApprovalForAll(marketplace, true);
             vm.stopBroadcast();
 
             address owner = resolveAddr(participantPKs[i]);
             console.log(
                 "%s HAS APPROVED DMRKT FOR ALL: ",
                 owner,
-                IERC721(nft).isApprovedForAll(owner, marketplace)
+                nftToken.isApprovedForAll(owner, marketplace)
+            );
+        }
+
+        logSection("APPROVE WETH ALLOWANCE FOR MARKETPLACE");
+
+        /*
+            DEV ORDERBOOK SETUP — INTENDED FLOW (CAN MIRROR PROD)
+
+            1) Mint NFTs
+            2) selectTokens() → choose tokenIds to list
+            3) Compute prices (pure + deterministic from tokenId)
+            4) Group by owner → sum prices per owner
+            = orderExposureByOwner / requiredWethAllowanceByOwner
+            5) Approve WETH = exact exposure per owner (NOT max)
+            6) Sign orders (off-chain)
+            7) Persist orders (JSON / Mongo)
+            8) Engine consumes orders
+
+            Notes:
+            - Allowance represents *economic exposure*, not convenience
+            - Deterministic pricing → reproducible forks & simulations
+            - Dev scripts intentionally mirror production flows
+
+            PROPER ALLOWANCE: 
+            exposure[owner] += priceOf(tokenId);
+            weth.approve(marketplace, exposure[owner]);
+        */
+
+        // DEV-ONLY:
+        // Infinite approval used ONLY for local fork / deterministic setup.
+        // Production flow uses exact per-owner exposure-based allowances.
+        uint256 allowance = type(uint256).max;
+
+        for (uint256 i = 0; i < participantLen; i++) {
+            vm.startBroadcast(participantPKs[i]);
+            wethToken.approve(marketplace, allowance);
+            vm.stopBroadcast();
+
+            address owner = resolveAddr(participantPKs[i]);
+            console.log(
+                "%s HAS APPROVED ALLOWANCE FOR MARKETPLACE: ",
+                owner,
+                wethToken.allowance(owner, marketplace)
             );
         }
     }
@@ -223,5 +278,17 @@ contract Setup is BaseDevScript, Config {
         }
 
         return ids;
+    }
+
+    function priceOf(
+        address nft,
+        uint256 tokenId
+    ) internal pure returns (uint256) {
+        bytes32 h = keccak256(abi.encode("DMRKT_PRICE_V1", nft, tokenId));
+
+        // map to range: 0.05 → 0.55 ETH
+        uint256 bucket = uint256(h) % 11; // 0..10
+
+        return (bucket + 1) * 0.05 ether;
     }
 }
