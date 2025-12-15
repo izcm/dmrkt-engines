@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "orderbook/libs/OrderActs.sol";
+import "./OrderActs.sol";
 
 library OrderBuilder {
     function ask(

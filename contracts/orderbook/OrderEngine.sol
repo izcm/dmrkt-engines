@@ -20,7 +20,8 @@ contract OrderEngine is ReentrancyGuard {
     bytes32 public immutable DOMAIN_SEPARATOR;
     address public immutable WETH;
 
-    mapping(address => mapping(uint256 => bool)) private _isUserOrderNonceInvalid;
+    mapping(address => mapping(uint256 => bool))
+        private _isUserOrderNonceInvalid;
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(
@@ -45,11 +46,11 @@ contract OrderEngine is ReentrancyGuard {
     /**
      * @notice Matches a `Fill` request to an existing `Order`
      */
-    function settle(OrderActs.Fill calldata fill, OrderActs.Order calldata order, SigOps.Signature calldata sig)
-        external
-        payable
-        nonReentrant
-    {
+    function settle(
+        OrderActs.Fill calldata fill,
+        OrderActs.Order calldata order,
+        SigOps.Signature calldata sig
+    ) external payable nonReentrant {
         // Fill request actor must be msg.sender
         require(msg.sender == fill.actor, UnauthorizedFillActor());
 
@@ -65,12 +66,20 @@ contract OrderEngine is ReentrancyGuard {
     /**
      * @notice Validates order.
      */
-    function _validateOrder(OrderActs.Order calldata order, uint8 v, bytes32 r, bytes32 s) internal view {
+    function _validateOrder(
+        OrderActs.Order calldata order,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) internal view {
         // Signer != addr(0)
         require(order.actor != address(0), ZeroActor());
 
         // Valid order nonce
-        require(!_isUserOrderNonceInvalid[order.actor][order.nonce], InvalidNonce());
+        require(
+            !_isUserOrderNonceInvalid[order.actor][order.nonce],
+            InvalidNonce()
+        );
 
         // Whitelisted currency
         require(order.currency == WETH, CurrencyNotWhitelisted());

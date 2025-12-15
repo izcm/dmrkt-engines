@@ -12,29 +12,11 @@ import {DMrktGremlin as DNFT} from "nfts/DMrktGremlin.ERC721.sol";
 
 // TODO: import IERC721 + IERC20 from OZ libs
 // interfaces
-interface IERC721 {
-    function setApprovalForAll(address operator, bool approved) external;
-    function isApprovedForAll(
-        address owner,
-        address operator
-    ) external returns (bool);
-    function ownerOf(uint256 tokenId) external view returns (address);
-    function transferFrom(address from, address to, uint256 tokenId) external;
-    function balanceOf(address who) external view returns (uint256);
-}
+import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
+import {IERC20} from "@openzeppelin/interfaces/IERC20.sol";
 
-interface IMintable721 {
+interface IMintable721 is IERC721 {
     function mint(address to) external;
-}
-
-interface IERC20 {
-    function transfer(address to, uint256 amount) external returns (bool);
-    function balanceOf(address who) external view returns (uint256);
-    function approve(address spender, uint256 amount) external returns (bool);
-    function allowance(
-        address owner,
-        address spender
-    ) external returns (uint256);
 }
 
 interface IWETH is IERC20 {
@@ -149,11 +131,11 @@ contract Bootstrap is BaseDevScript, Config {
         // --------------------------------
         logSection("MINT NFTs");
 
-        IERC721 nftToken = IERC721(address(dNft));
+        IMintable721 nftToken = IMintable721(address(dNft));
         uint256 supply = dNft.MAX_SUPPLY();
 
         // script mints all tokens => limit = MAX_SUPPLY()
-        mintTokens(participantPKs, IMintable721(address(nftToken)), supply);
+        mintTokens(participantPKs, nftToken, supply);
 
         logSection("DNFT FINAL BALANCES");
 
