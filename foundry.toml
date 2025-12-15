@@ -11,7 +11,7 @@ remappings = [
 ]
 
 fs_permissions = [
-    { access = "read", path = "./data/" },
+    { access = "read-write", path = "./data/" },
     { access = "read-write", path = "deployments.toml" }
 ]
 

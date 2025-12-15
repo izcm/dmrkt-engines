@@ -9,9 +9,9 @@ abstract contract BaseDevScript is Script {
         uint256 chainId
     ) internal view returns (uint256[] memory) {
         string memory path = string.concat(
-            "./data/keys/keys.",
+            "./data/",
             vm.toString(chainId),
-            ".json"
+            "/keys.json"
         );
 
         string memory json = vm.readFile(path);
@@ -20,7 +20,7 @@ abstract contract BaseDevScript is Script {
         return keys;
     }
 
-    function resolveAddr(uint256 pk) internal view returns (address) {
+    function resolveAddr(uint256 pk) internal pure returns (address) {
         return vm.addr(pk);
     }
 
@@ -70,7 +70,7 @@ abstract contract BaseDevScript is Script {
         console.log("%s | %s | balance: %s", label, a, balance);
     }
 
-    function logSeperator() internal pure {
+    function logSeparator() internal pure {
         console.log("------------------------------------");
     }
 

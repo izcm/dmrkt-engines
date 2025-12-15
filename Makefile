@@ -35,7 +35,7 @@ dev-bootstrap:dev-fork
 		--private-key $(PRIVATE_KEY)
 
 dev-reset:
-	@echo "🔥 FULL DEV RESET"
+	@echo "FULL DEV RESET"
 	$(MAKE) dev-fork
 	$(MAKE) dev-bootstrap
 	$(MAKE) dev-build-orders
@@ -45,9 +45,14 @@ weth-balance:
 		echo "❌ Missing ADDR. Usage: make weth-balance ADDR=0xYourAddress"; \
 		exit 1; \
 	fi
-	@echo "💧 WETH balance for $(ADDR):"
+	@echo "WETH balance for $(ADDR):"
 	@cast call \
 		$(WETH) \
 		"balanceOf(address)" \
 		$(ADDR) \
 		--rpc-url http://127.0.0.1:8545 | cast from-wei
+
+tree:
+	@if [ -z "$(DEPTH)" ]; then DEPTH=2; fi; \
+	tree -L $$DEPTH -I "out|lib|broadcast|cache|notes"
+

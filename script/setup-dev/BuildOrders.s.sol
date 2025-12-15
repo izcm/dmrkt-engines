@@ -25,7 +25,13 @@ interface DNFT {
     function MAX_SUPPLY() external view returns (uint256);
 }
 
+struct SignedOrder {
+    OrderActs.Order order;
+    SigOps.Signature sig;
+}
+
 contract BuildOrders is BaseDevScript, Config {
+    mapping(address => uint256) internal ownerPK;
     mapping(address => uint256) internal nonceOf;
 
     function run() external {
@@ -45,10 +51,12 @@ contract BuildOrders is BaseDevScript, Config {
 
         // deployed contracts
         address dNft = config.get("dnft_erc721").toAddress();
-        address sigVerifier = config.get("verifying_contract").toAddress();
+        address verifyingContract = config
+            .get("verifying_contract")
+            .toAddress();
 
         logAddress("DNFT    ", dNft);
-        logAddress("VERIFIER", sigVerifier);
+        logAddress("VERIFIER", verifyingContract);
 
         // --------------------------------
         // PHASE 1: MAKE ORDERS
@@ -56,14 +64,56 @@ contract BuildOrders is BaseDevScript, Config {
         logSection("MAKE ORDERS: ASK");
 
         OrderActs.Order[] memory orders = _makeOrders(address(dNft), weth);
-
-        // --------------------------------
-        // PHASE 2: SIGNING ORDERS
-        // --------------------------------
-        logSection("SIGNING ORDERS");
+        uint256 orderCount = orders.length;
 
         // --- PKs for signing ---
         uint256[] memory participantPKs = readKeys(chainId);
+        uint256 participantCount = participantPKs.length;
+
+        for (uint256 i = 0; i < participantCount; i++) {
+            uint256 pk = participantPKs[i];
+
+            address addr = resolveAddr(pk);
+            ownerPK[addr] = pk;
+        }
+
+        bytes32 domainSeparator = OrderEngine(verifyingContract)
+            .DOMAIN_SEPARATOR();
+
+        SignedOrder[] memory signed = new SignedOrder[](orderCount);
+
+        for (uint256 i = 0; i < orderCount; i++) {
+            OrderActs.Order memory order = orders[i];
+
+            uint256 pk = ownerPK[order.actor];
+            require(pk != 0, "NO PK FOR ACTOR");
+
+            (SigOps.Signature memory sig) = _makeOrderDigestAndSign(
+                order,
+                pk,
+                domainSeparator
+            );
+
+            signed[i] = SignedOrder(order, sig);
+        }
+
+        string memory path = string.concat(
+            "./data/",
+            vm.toString(chainId),
+            "/orders.json"
+        );
+
+        _persistSignedOrders(
+            signed,
+            path,
+            chainId,
+            verifyingContract,
+            domainSeparator
+        );
+
+        logSeparator();
+        console.log("ORDERS SAVED TO: %s", path);
+        logSeparator();
     }
 
     function _makeOrders(
@@ -78,11 +128,10 @@ contract BuildOrders is BaseDevScript, Config {
             3
         );
 
-        OrderActs.Order[] memory orders = new OrderActs.Order[](
-            selected.length
-        );
+        uint256 selectedCount = selected.length;
+        OrderActs.Order[] memory orders = new OrderActs.Order[](selectedCount);
 
-        for (uint256 i = 0; i < selected.length; i++) {
+        for (uint256 i = 0; i < selectedCount; i++) {
             uint256 tokenId = selected[i];
             address owner = token.ownerOf(tokenId);
             uint256 price = MarketSim.priceOf(collection, tokenId);
@@ -105,7 +154,7 @@ contract BuildOrders is BaseDevScript, Config {
         OrderActs.Order memory order,
         uint256 actorPrivateKey,
         bytes32 domainSeparator
-    ) internal returns (OrderActs.Order memory, SigOps.Signature memory) {
+    ) internal pure returns (SigOps.Signature memory) {
         bytes32 digest = keccak256(
             abi.encodePacked("\x19\x01", domainSeparator, OrderActs.hash(order))
         );
@@ -114,6 +163,84 @@ contract BuildOrders is BaseDevScript, Config {
 
         SigOps.Signature memory sig = SigOps.Signature({v: v, r: r, s: s});
 
-        return (order, sig);
+        return sig;
+    }
+
+    function _persistSignedOrders(
+        SignedOrder[] memory signedOrders,
+        string memory path,
+        uint256 chainId,
+        address verifyingContract,
+        bytes32 domainSeparator
+    ) internal {
+        uint256 signedOrderCount = signedOrders.length;
+        string memory root = "root";
+
+        // metadata
+        vm.serializeUint(root, "chainId", chainId);
+        vm.serializeAddress(root, "verifyingContract", verifyingContract);
+        vm.serializeBytes32(root, "domainSeparator", domainSeparator);
+
+        // signedOrders array
+        string[] memory entries = new string[](signedOrderCount);
+
+        for (uint256 i = 0; i < signedOrderCount; i++) {
+            SignedOrder memory signed = signedOrders[i];
+
+            string memory oKey = string.concat(
+                "order_",
+                vm.toString(uint256(1))
+            );
+
+            entries[i] = _serializeOrder(signed.order, oKey);
+
+            // ---- signature ----
+            SigOps.Signature memory sig = signed.sig;
+
+            string memory sKey = string.concat(oKey, "sig");
+
+            vm.serializeUint(sKey, "v", sig.v);
+            vm.serializeBytes32(sKey, "r", sig.r);
+            vm.serializeBytes32(sKey, "s", sig.s);
+
+            // tried to avoid printing this value, but cannot avoid this!?
+            string memory sigOut = vm.serializeString(sKey, "_", "0");
+
+            string memory output = vm.serializeString(
+                oKey,
+                "signature",
+                sigOut
+            );
+            entries[i] = output;
+        }
+
+        string memory finalJson = vm.serializeString(
+            root,
+            "signedOrders",
+            entries
+        );
+
+        vm.writeJson(finalJson, path);
+    }
+
+    function _serializeOrder(
+        OrderActs.Order memory o,
+        string memory objKey
+    ) internal returns (string memory) {
+        string memory key = objKey;
+
+        // ---- order ----
+        vm.serializeUint(key, "side", uint256(o.side));
+        vm.serializeAddress(key, "actor", o.actor);
+        vm.serializeBool(key, "isCollectionBid", o.isCollectionBid);
+        vm.serializeAddress(key, "collection", o.collection);
+        vm.serializeString(key, "tokenId", vm.toString(o.tokenId));
+        vm.serializeString(key, "price", vm.toString(o.price));
+        vm.serializeAddress(key, "currency", o.currency);
+        vm.serializeUint(key, "start", o.start);
+        vm.serializeUint(key, "end", o.end);
+        vm.serializeString(key, "nonce", vm.toString(o.nonce));
+
+        return key;
     }
 }

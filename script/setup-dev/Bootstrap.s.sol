@@ -79,15 +79,18 @@ contract Bootstrap is BaseDevScript, Config {
         uint256 distributableEth = (funder.balance * 4) / 5;
 
         // --- PKs for broadcasting ---
+
+        // TODO: replace dev PKs with mnemonic-derived keys
+        // https://getfoundry.sh/reference/cheatcodes/derive-key
         uint256[] memory participantPKs = readKeys(chainId);
-        uint256 participantLen = participantPKs.length;
+        uint256 participantCount = participantPKs.length;
 
         // amount to fund each account
-        uint256 bootstrapEth = distributableEth / participantLen;
+        uint256 bootstrapEth = distributableEth / participantCount;
 
         vm.startBroadcast(funderPK);
 
-        for (uint256 i = 0; i < participantLen; i++) {
+        for (uint256 i = 0; i < participantCount; i++) {
             address a = resolveAddr(participantPKs[i]);
 
             logBalance("PRE ", a);
@@ -100,7 +103,7 @@ contract Bootstrap is BaseDevScript, Config {
                 logBalance("POST", a);
             }
 
-            logSeperator();
+            logSeparator();
         }
 
         vm.stopBroadcast();
@@ -113,7 +116,7 @@ contract Bootstrap is BaseDevScript, Config {
         uint256 wethWrapAmount = bootstrapEth / 2;
         IWETH wethToken = IWETH(weth);
 
-        for (uint256 i = 1; i < participantLen; i++) {
+        for (uint256 i = 1; i < participantCount; i++) {
             address a = resolveAddr(participantPKs[i]);
             logTokenBalance("PRE  WETH", a, wethToken.balanceOf(a));
 
@@ -123,7 +126,7 @@ contract Bootstrap is BaseDevScript, Config {
 
             logTokenBalance("POST WETH", a, wethToken.balanceOf(a));
 
-            logSeperator();
+            logSeparator();
         }
 
         // --------------------------------
@@ -139,7 +142,7 @@ contract Bootstrap is BaseDevScript, Config {
 
         logSection("DNFT FINAL BALANCES");
 
-        for (uint256 i = 0; i < participantLen; i++) {
+        for (uint256 i = 0; i < participantCount; i++) {
             address user = resolveAddr(participantPKs[i]);
             uint256 bal = nftToken.balanceOf(user);
 
@@ -155,7 +158,7 @@ contract Bootstrap is BaseDevScript, Config {
 
         address marketplace = address(orderEngine);
 
-        for (uint256 i = 0; i < participantLen; i++) {
+        for (uint256 i = 0; i < participantCount; i++) {
             vm.startBroadcast(participantPKs[i]);
             nftToken.setApprovalForAll(marketplace, true);
             vm.stopBroadcast();
@@ -175,7 +178,7 @@ contract Bootstrap is BaseDevScript, Config {
         // Production flow uses exact per-owner exposure-based allowances.
         uint256 allowance = type(uint256).max;
 
-        for (uint256 i = 0; i < participantLen; i++) {
+        for (uint256 i = 0; i < participantCount; i++) {
             vm.startBroadcast(participantPKs[i]);
             wethToken.approve(marketplace, allowance);
             vm.stopBroadcast();
