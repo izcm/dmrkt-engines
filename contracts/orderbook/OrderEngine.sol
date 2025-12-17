@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
+import {IERC165} from "@openzeppelin/interfaces/IERC165.sol";
 import {ReentrancyGuard} from "@openzeppelin/utils/ReentrancyGuard.sol";
 
 // local
@@ -12,6 +14,9 @@ error UnauthorizedFillActor();
 error InvalidNonce();
 error ZeroActor();
 error CurrencyNotWhitelisted();
+error UnsupportedCollection();
+
+bytes4 constant INTERFACE_ID_ERC721 = 0x80ac58cd;
 
 contract OrderEngine is ReentrancyGuard {
     using OrderActs for OrderActs.Order;
@@ -58,7 +63,13 @@ contract OrderEngine is ReentrancyGuard {
         (uint8 v, bytes32 r, bytes32 s) = sig.vrs();
         _validateOrder(order, v, r, s);
 
-        // uint256 tokenId = order.isCollectionBid ? fill.tokenId : order.tokenId;
+        // if collectionbid => implement a strategy to select tokenId
+        uint256 tokenId = order.tokenId;
+
+        // prevent replay by making nonce invalid
+        _isUserOrderNonceInvalid[order.actor][order.nonce] = true;
+
+        _transferNFT(order.collection, fill.actor, order.actor, tokenId);
     }
 
     // ===== INTERNAL FUNCTIONS =====
@@ -86,5 +97,19 @@ contract OrderEngine is ReentrancyGuard {
 
         // Verify Signature
         SigOps.verify(DOMAIN_SEPARATOR, order.hash(), order.actor, v, r, s);
+    }
+
+    function _transferNFT(
+        address collection,
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal {
+        if (IERC165(collection).supportsInterface(INTERFACE_ID_ERC721)) {
+            // erc165 supports interface erc721
+            IERC721(collection).safeTransferFrom(from, to, tokenId);
+        } else {
+            revert UnsupportedCollection();
+        }
     }
 }
