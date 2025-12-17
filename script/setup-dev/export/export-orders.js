@@ -11,7 +11,6 @@ const obj = JSON.parse(raw);
 const orders = obj.signedOrders;
 
 orders.map(async (order) => {
-  console.log(order);
   const payload = await fetch(server, {
     method: "POST",
     headers: {
@@ -19,6 +18,12 @@ orders.map(async (order) => {
     },
     body: JSON.stringify(order),
   });
+
+  // TODO: make this check status code when implemented
+  if (!payload.ok) {
+    console.error("Failed to ingest order", await res.text());
+    process.exit(1);
+  }
 });
 
 console.log("Orders exported ✔");
