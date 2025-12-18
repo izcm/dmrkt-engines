@@ -5,6 +5,7 @@ libs = ["lib"]
 
 remappings = [
     "orderbook/=contracts/orderbook",
+    "test-helpers/=test/helpers",
     "nfts/=contracts/nfts",
     "shared/=contracts/shared",
     "dev/=script/dev",

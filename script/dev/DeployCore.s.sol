@@ -18,21 +18,24 @@ contract DeployCore is BaseDevScript, Config {
         // --------------------------------
         _loadConfig("deployments.toml", true);
 
-        logSection("CONFIG & CONTRACT DEPLOYMENT");
+        logSection("LOAD CONFIG");
 
         uint256 chainId = block.chainid;
 
         console.log("ChainId: %s", chainId);
 
+        address weth = config.get("weth").toAddress();
+        uint256 funderPk = uint256(uint256(vm.envUint("PRIVATE_KEY")));
+
         // --------------------------------
         // PHASE 1: DEPLOY MARKETPLCE & NFTS
         // --------------------------------
-        uint256 funderPk = uint256(uint256(vm.envUint("PRIVATE_KEY")));
+        logSection("DEPLOY CORE CONTRACTS");
 
         // since the script uses the same private key its not necessary but I like to be explicit
         vm.startBroadcast(funderPk);
 
-        orderEngine = new OrderEngine();
+        orderEngine = new OrderEngine(weth, msg.sender);
         DNFT dNft = new DNFT();
 
         vm.stopBroadcast();

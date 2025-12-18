@@ -21,9 +21,10 @@ error UnsupportedCollection();
 bytes4 constant INTERFACE_ID_ERC721 = 0x80ac58cd;
 
 // TODO: when implementing support for other currency than WETH:
-// /lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol
+// lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol
+
 contract OrderEngine is ReentrancyGuard {
-    // though only weth is supported SafeERC20 is used for future proofing
+    // SafeERC20 is used for future proofing
     using SafeERC20 for IERC20;
 
     using OrderActs for OrderActs.Order;
@@ -38,7 +39,7 @@ contract OrderEngine is ReentrancyGuard {
     mapping(address => mapping(uint256 => bool))
         private _isUserOrderNonceInvalid;
 
-    constructor() {
+    constructor(address weth, address feeReceiver) {
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 // EIP-712 domain type hash
@@ -53,9 +54,8 @@ contract OrderEngine is ReentrancyGuard {
             )
         );
 
-        // TODO: pass these as constructor args
-        WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        protocolFeeReceiver = address(0);
+        WETH = weth;
+        protocolFeeReceiver = feeReceiver;
     }
 
     // ===== EXTERNAL FUNCTIONS =====
@@ -87,6 +87,31 @@ contract OrderEngine is ReentrancyGuard {
     }
 
     // ===== INTERNAL FUNCTIONS =====
+
+    /**
+     * @notice Validates order.
+     */
+    function _validateOrder(
+        OrderActs.Order calldata order,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) internal view {
+        // Signer != addr(0)
+        require(order.actor != address(0), ZeroActor());
+
+        // Valid order nonce
+        require(
+            !_isUserOrderNonceInvalid[order.actor][order.nonce],
+            InvalidNonce()
+        );
+
+        // Whitelisted currency
+        require(order.currency == WETH, CurrencyNotWhitelisted());
+
+        // Verify Signature
+        SigOps.verify(DOMAIN_SEPARATOR, order.hash(), order.actor, v, r, s);
+    }
 
     /**
      * @param currency: per today always WETH.
@@ -122,31 +147,6 @@ contract OrderEngine is ReentrancyGuard {
         {
             IERC20(currency).safeTransferFrom(from, to, sellerCompensation);
         }
-    }
-
-    /**
-     * @notice Validates order.
-     */
-    function _validateOrder(
-        OrderActs.Order calldata order,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) internal view {
-        // Signer != addr(0)
-        require(order.actor != address(0), ZeroActor());
-
-        // Valid order nonce
-        require(
-            !_isUserOrderNonceInvalid[order.actor][order.nonce],
-            InvalidNonce()
-        );
-
-        // Whitelisted currency
-        require(order.currency == WETH, CurrencyNotWhitelisted());
-
-        // Verify Signature
-        SigOps.verify(DOMAIN_SEPARATOR, order.hash(), order.actor, v, r, s);
     }
 
     function _transferNFT(

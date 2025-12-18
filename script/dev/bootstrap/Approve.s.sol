@@ -18,7 +18,7 @@ contract Approve is BaseDevScript, Config {
         // --------------------------------
         _loadConfig("deployments.toml", true);
 
-        logSection("CONFIG & CONTRACT DEPLOYMENT");
+        logSection("LOAD CONFIG");
 
         uint256 chainId = block.chainid;
         console.log("ChainId: %s", chainId);
