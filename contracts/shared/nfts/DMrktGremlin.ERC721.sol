@@ -38,7 +38,7 @@ contract DMrktGremlin is ERC721 {
                 '<path d="M190 170 Q140 110 160 80" stroke="#7c5cff" stroke-width="10" fill="none" stroke-linecap="round"/>',
                 '<path d="M410 170 Q460 110 440 80" stroke="#7c5cff" stroke-width="10" fill="none" stroke-linecap="round"/>',
                 '<rect x="200" y="420" rx="18" ry="18" width="200" height="48" fill="#111827" stroke="#7c5cff" stroke-width="2"/>',
-                '<text x="300" y="452" text-anchor="middle" font-size="22" fill="#7c5cff" font-family="monospace" letter-spacing="1">on-chain</text>',
+                '<text x="300" y="452" text-anchor="middle" font-size="22" fill="#7c5cff" font-family="monospace" letter-spacing="1">dmrkt</text>',
                 "</svg>"
             )
         );

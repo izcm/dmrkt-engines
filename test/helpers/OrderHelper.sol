@@ -10,39 +10,61 @@ import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 abstract contract OrderHelper is Test {
     using OrderActs for OrderActs.Order;
 
-    address collection = makeAddr("collection");
-    address currency = makeAddr("currency");
+    uint256 internal constant DEFAULT_PRICE = 1 ether;
+
+    // defaults (override in child tests if you want)
+    address internal collection = makeAddr("collection");
+    address internal defaultCurrency = makeAddr("currency");
+
+    /*//////////////////////////////////////////////////////////////
+                                SIGNING
+    //////////////////////////////////////////////////////////////*/
 
     function makeOrderDigestAndSign(
         address actor,
         uint256 actorPrivateKey,
         bytes32 domainSeparator
-    ) internal view returns (OrderActs.Order memory, SigOps.Signature memory) {
-        OrderActs.Order memory order = makeOrder(actor);
+    )
+        internal
+        view
+        returns (OrderActs.Order memory order, SigOps.Signature memory sig)
+    {
+        order = makeOrder(actor);
         bytes32 digest = makeDigest(order, domainSeparator);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(actorPrivateKey, digest);
-        SigOps.Signature memory sig = SigOps.Signature({v: v, r: r, s: s});
-
-        return (order, sig);
+        sig = SigOps.Signature({v: v, r: r, s: s});
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                ORDERS
+    //////////////////////////////////////////////////////////////*/
 
     function makeOrder(
         address actor
     ) internal view returns (OrderActs.Order memory) {
-        return makeOrder(actor, 0);
+        return makeOrder(actor, 0, defaultCurrency, DEFAULT_PRICE);
     }
 
     function makeOrder(
         address actor,
         uint256 nonce
     ) internal view returns (OrderActs.Order memory) {
-        return makeOrder(actor, nonce, 1 ether);
+        return makeOrder(actor, nonce, defaultCurrency, DEFAULT_PRICE);
     }
 
     function makeOrder(
         address actor,
         uint256 nonce,
+        address currency
+    ) internal view returns (OrderActs.Order memory) {
+        return makeOrder(actor, nonce, currency, DEFAULT_PRICE);
+    }
+
+    function makeOrder(
+        address actor,
+        uint256 nonce,
+        address currency,
         uint256 price
     ) internal view returns (OrderActs.Order memory) {
         return
@@ -60,13 +82,22 @@ abstract contract OrderHelper is Test {
             });
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                DIGEST
+    //////////////////////////////////////////////////////////////*/
+
     function makeDigest(
         OrderActs.Order memory o,
         bytes32 domainSeparator
-    ) internal view returns (bytes32) {
-        bytes32 msgHash = o.hash();
-
+    ) internal pure returns (bytes32) {
         return
-            keccak256(abi.encodePacked("\x19\x01", domainSeparator, msgHash));
+            keccak256(abi.encodePacked("\x19\x01", domainSeparator, o.hash()));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                SIGNATURE
+    //////////////////////////////////////////////////////////////*/
+    function dummySig() internal pure returns (SigOps.Signature memory) {
+        return SigOps.Signature({v: 0, r: bytes32(0), s: bytes32(0)});
     }
 }

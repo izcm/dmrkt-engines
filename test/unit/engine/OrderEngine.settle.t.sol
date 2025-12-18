@@ -4,6 +4,7 @@ pragma solidity ^0.8.30;
 // local
 import {OrderEngine} from "orderbook/OrderEngine.sol";
 import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
 // helpers
 import {OrderHelper} from "test-helpers/OrderHelper.sol";
@@ -12,7 +13,6 @@ import {AccountsHelper} from "test-helpers/AccountsHelper.sol";
 /*
     // === REVERTS ===
 
-    // fill.actor != msg.sender
     // invalid signature (wrong signer / wrong order fields)
     // reused nonce
     // order.actor == address(0)
@@ -28,12 +28,16 @@ import {AccountsHelper} from "test-helpers/AccountsHelper.sol";
     // cannot settle same order twice
 
     // === SIGNATURE (INTEGRATION ONLY) ===
-    
+
     // invalid signature causes settle to revert
     // valid signature allows settle to proceed
 */
 
 contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
+    using OrderActs for OrderActs.Order;
+
+    uint256 internal constant DEFAULT_TOKENID = 1;
+
     address immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     OrderEngine orderEngine;
@@ -47,5 +51,35 @@ contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
         actors = allActors();
     }
 
-    function test_Settle_InvalidSenderReverts() public {}
+    /*//////////////////////////////////////////////////////////////
+                                REVERTS
+    //////////////////////////////////////////////////////////////*/
+    function test_Settle_InvalidSenderReverts() public {
+        address orderActor = actors[0];
+
+        address fillActor = actors[1];
+        address txSender = actors[2];
+
+        OrderActs.Order memory order = makeOrder(orderActor);
+        OrderActs.Fill memory fill = makeFill(fillActor);
+        SigOps.Signature memory sig = dummySig();
+
+        vm.expectRevert(OrderEngine.UnauthorizedFillActor.selector);
+        orderEngine.settle(fill, order, sig);
+    }
+
+    function test_Settle_ReusedNonceReverts() public {}
+
+    function makeFill(
+        address actor
+    ) internal view returns (OrderActs.Fill memory fill) {
+        return OrderActs.Fill({actor: actor, tokenId: DEFAULT_TOKENID});
+    }
+
+    function makeFill(
+        address actor,
+        uint256 tokenId
+    ) internal view returns (OrderActs.Fill memory fill) {
+        return OrderActs.Fill({actor: actor, tokenId: tokenId});
+    }
 }

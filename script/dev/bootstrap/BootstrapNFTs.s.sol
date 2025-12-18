@@ -55,11 +55,7 @@ contract BootstrapNFTs is BaseDevScript, Config {
         }
     }
 
-    function mintTokens(
-        uint256[] memory pks,
-        IMintable721 nft,
-        uint256 limit
-    ) internal {
+    function mintTokens(uint256[] memory pks, IMintable721 nft, uint256 limit) internal {
         // in this script we know i = tokenid for token minted (no previous mints)
         for (uint256 i = 0; i < limit; i++) {
             bytes32 h = keccak256(abi.encode(address(nft), i));

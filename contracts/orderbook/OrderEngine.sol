@@ -11,25 +11,24 @@ import {ReentrancyGuard} from "@openzeppelin/utils/ReentrancyGuard.sol";
 import "./libs/OrderActs.sol";
 import {SignatureOps as SigOps} from "./libs/SignatureOps.sol";
 
-// ===== ERRORS =====
-error UnauthorizedFillActor();
-error InvalidNonce();
-error ZeroActor();
-error CurrencyNotWhitelisted();
-error UnsupportedCollection();
-
 bytes4 constant INTERFACE_ID_ERC721 = 0x80ac58cd;
 
 // TODO: when implementing support for other currency than WETH:
 // lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol
 
 contract OrderEngine is ReentrancyGuard {
-    // SafeERC20 is used for future proofing
     using SafeERC20 for IERC20;
-
     using OrderActs for OrderActs.Order;
     using SigOps for SigOps.Signature;
 
+    // === ERRORS ===
+    error UnauthorizedFillActor();
+    error InvalidNonce();
+    error ZeroActor();
+    error CurrencyNotWhitelisted();
+    error UnsupportedCollection();
+
+    // === IMMUTABLES ===
     bytes32 public immutable DOMAIN_SEPARATOR;
     address public immutable WETH;
     uint256 public immutable PROTOCOL_FEE_BPS = 1; // immutable for simplicity
