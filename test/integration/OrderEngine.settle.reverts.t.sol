@@ -16,13 +16,9 @@ import {SettlementHelper} from "test-helpers/SettlementHelper.sol";
 // mocks
 import {MockWETH} from "mocks/MockWETH.sol";
 import {MockERC721} from "mocks/MockERC721.sol";
+import {MockUnsupported} from "mocks/MockUnsupported.sol";
 
 /*
-    // === REVERTS ===
-
-    // unsupported collection (not ERC721)
-    // reverts if isBid & !isCollectionBid and order.tokenid != fill.tokenId
-
     // === SIGNATURE (INTEGRATION ONLY) ===
 
     // invalid signature causes settle to revert
@@ -57,17 +53,21 @@ contract OrderEngineSettleRevertsTest is
         bytes32 domainSeparator = orderEngine.DOMAIN_SEPARATOR();
 
         // future proofing in case auth decentralizes from orderEngine
-        address erc721Transferer = address(orderEngine);
-        address erc20Spender = address(orderEngine);
+        address erc721TransferOperator = address(orderEngine);
+        address erc20AllowanceSpender = address(orderEngine);
 
-        _initSettlementHelper(weth, erc721Transferer, erc20Spender);
+        _initSettlementHelper(
+            weth,
+            erc721TransferOperator,
+            erc20AllowanceSpender
+        );
         _initOrderHelper(domainSeparator);
 
         _initActors(DEFAULT_ACTOR_COUNT);
     }
 
     /*//////////////////////////////////////////////////////////////
-                    REVERTS BEFORE SIG VERIFICATION
+                    VALID SIGNATURE NOT REQUIRED
     //////////////////////////////////////////////////////////////*/
 
     function test_Settle_InvalidSenderReverts() public {
@@ -128,7 +128,32 @@ contract OrderEngineSettleRevertsTest is
     }
 
     /*//////////////////////////////////////////////////////////////
-                    REVERTS AFTER SIG VERIFICATION
+                    VALID SIGNATURE REQUIRED
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Settle_InvalidOrderSideReverts() public {
+        Actors memory actors = someActors("invalid_side");
+        uint256 signerPk = pkOf(actors.order);
+
+        OrderActs.Order memory order = makeAsk(
+            actors.order,
+            erc721,
+            wethAddr()
+        );
+
+        order.side = OrderActs.Side._COUNT; // invalid
+
+        (, SigOps.Signature memory sig) = makeDigestAndSign(order, signerPk);
+
+        OrderActs.Fill memory fill = makeFill(actors.fill);
+
+        vm.prank(actors.fill);
+        vm.expectRevert(OrderEngine.InvalidOrderSide.selector);
+        orderEngine.settle(fill, order, sig);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                VALID SIGNATURE + APPROVALS REQUIRED
     //////////////////////////////////////////////////////////////*/
 
     function test_Settle_ReusedNonceReverts() public {
@@ -157,24 +182,33 @@ contract OrderEngineSettleRevertsTest is
         orderEngine.settle(fill, order, sig);
     }
 
-    function test_Settle_InvalidOrderSideReverts() public {
-        Actors memory actors = someActors("invalid_side");
+    function test_Settle_UnsupportedCollectionReverts() public {
+        Actors memory actors = someActors("unsupported_collection");
         uint256 signerPk = pkOf(actors.order);
+
+        MockUnsupported unsupportedCollection = new MockUnsupported();
 
         OrderActs.Order memory order = makeAsk(
             actors.order,
-            erc721,
+            address(unsupportedCollection),
             wethAddr()
         );
-
-        order.side = OrderActs.Side._COUNT; // invalid
 
         (, SigOps.Signature memory sig) = makeDigestAndSign(order, signerPk);
 
         OrderActs.Fill memory fill = makeFill(actors.fill);
 
+        // `legitimizeSettlement` mints nft while MockUnsupported does not mint implement `mint`
+        // => explicitly do erc20 approvals
+        address collection = order.collection;
+        uint256 price = order.price;
+
+        (, address spender, ) = expectRolesAndAssets(fill, order);
+
+        dealWethAndApproveSpenderAllowance(spender, price);
+
         vm.prank(actors.fill);
-        vm.expectRevert(OrderEngine.InvalidOrderSide.selector);
+        vm.expectRevert(OrderEngine.UnsupportedCollection.selector);
         orderEngine.settle(fill, order, sig);
     }
 }

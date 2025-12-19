@@ -104,7 +104,7 @@ contract OrderEngine is ReentrancyGuard {
 
         _settlePayment(order.currency, spender, nftHolder, order.price);
 
-        _transferNFT(order.collection, nftHolder, spender, tokenId);
+        _transferNft(order.collection, nftHolder, spender, tokenId);
     }
 
     function isUserOrderNonceInvalid(
@@ -177,7 +177,7 @@ contract OrderEngine is ReentrancyGuard {
         }
     }
 
-    function _transferNFT(
+    function _transferNft(
         address collection,
         address from,
         address to,
