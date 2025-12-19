@@ -1,68 +1,39 @@
-**TODO: add readme for setup-dev seperate from this readme**
+# Marketplace Engines
 
-## Foundry
+## Project Structure
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+### contracts/
 
-Foundry consists of:
+Core protocol implementations:
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- `orderbook/` - OrderEngine and settlement logic
+- `amm/` - Pool-based automated market making
+- `nfts/` - Mock ERC721 contracts for testing
 
-## Documentation
+### script/
 
-https://book.getfoundry.sh/
+Deployment and development scripts:
 
-## Usage
+- `DeployOrderEngine.s.sol` - Main deployment script
+- `dev/` - Bootstrap scripts, account setup, and local dev utilities
 
-### Build
+### test/
 
-```shell
-$ forge build
-```
+Test suite organized by scope:
 
-### Test
+- `unit/` - Isolated component tests
+- `integration/` - End-to-end settlement and revert scenarios
+- `helpers/` - Shared test utilities (OrderHelper, AccountsHelper, SettlementHelper)
+- `mocks/` - Test-only contracts (MockWETH, MockERC721)
 
-```shell
-$ forge test
-```
+## Known Edge Cases
 
-### Format
+### Non-Collection Bids & `fill.tokenId`
 
-```shell
-$ forge fmt
-```
+For **non-collection bids**, `fill.tokenId` is **intentionally ignored**.
 
-### Gas Snapshots
+The traded `tokenId` is always taken from `order.tokenId`.  
+This avoids introducing sentinel values (e.g. `0`) or partial validation rules for `fill.tokenId`, which would be ambiguous since `tokenId = 0` is a valid ERC-721 identifier.
 
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+Only **collection bids** require `fill.tokenId` to be meaningful.  
+In all other cases, the filler implicitly accepts the exact token specified by the order.
