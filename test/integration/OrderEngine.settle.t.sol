@@ -15,6 +15,7 @@ import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 // helpers
 import {OrderHelper} from "test-helpers/OrderHelper.sol";
 import {AccountsHelper} from "test-helpers/AccountsHelper.sol";
+import {SettlementHelper} from "test-helpers/SettlementHelper.sol";
 
 // mocks
 import {MockWETH} from "mocks/MockWETH.sol";
@@ -45,7 +46,11 @@ import {IWETH} from "periphery/interfaces/IWETH.sol";
 // NOTE:
 // Tests use SafeERC20 for consistency with production paths.
 // ERC20 edge-case behavior is not explicitly tested here.
-contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
+contract OrderEngineSettleTest is
+    OrderHelper,
+    AccountsHelper,
+    SettlementHelper
+{
     using SafeERC20 for IERC20; // mirrors actual engine
     using OrderActs for OrderActs.Order;
 
@@ -108,7 +113,7 @@ contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
 
         OrderActs.Fill memory fill = makeFill(actors.fill);
 
-        legitimizeOrder(order, actors);
+        legitimizeSettlement(fill, order);
 
         // valid nonce
         vm.prank(actors.fill);
@@ -122,28 +127,19 @@ contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
 
     // === INTERNAL HELPERS ===
 
-    function legitimizeOrder(
-        OrderActs.Order memory o,
-        Actors memory a
+    function legitimizeSettlement(
+        OrderActs.Fill memory f,
+        OrderActs.Order memory o
     ) internal {
         address collection = o.collection;
         uint256 price = o.price;
         address currency = o.currency;
 
-        address nftHolder;
-        address spender;
-
-        if (o.side == OrderActs.Side.Ask) {
-            nftHolder = a.order;
-            spender = a.fill;
-        } else {
-            // if is bid, then strap the actor.filler with an nft
-            nftHolder = a.fill;
-            spender = a.order;
-        }
-
-        // TODO: if collectionbid handle this better
-        uint256 tokenId = o.tokenId;
+        (
+            address nftHolder,
+            address spender,
+            uint256 tokenId
+        ) = expectRolesAndAsset(f, o);
 
         // future proofing in case future support for other currencies
         if (currency == weth) {
