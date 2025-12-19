@@ -27,6 +27,7 @@ contract OrderEngine is ReentrancyGuard {
     error ZeroActor();
     error CurrencyNotWhitelisted();
     error UnsupportedCollection();
+    error InvalidOrderSide();
 
     // === IMMUTABLES ===
     bytes32 public immutable DOMAIN_SEPARATOR;
@@ -74,15 +75,30 @@ contract OrderEngine is ReentrancyGuard {
         (uint8 v, bytes32 r, bytes32 s) = sig.vrs();
         _validateOrder(order, v, r, s);
 
-        // if collectionbid => implement a strategy to select tokenId
-        uint256 tokenId = order.tokenId;
-
-        // prevent replay by making nonce invalid
+        // prevents replay
         _isUserOrderNonceInvalid[order.actor][order.nonce] = true;
 
-        _settlePayment(order.currency, order.price, fill.actor, order.actor);
+        // decide roles and asset
+        address nftHolder;
+        address spender;
+        uint256 tokenId;
 
-        _transferNFT(order.collection, order.actor, fill.actor, tokenId);
+        if (order.isAsk()) {
+            nftHolder = order.actor;
+            spender = fill.actor;
+            tokenId = order.tokenId;
+        } else if (order.isBid()) {
+            nftHolder = fill.actor;
+            spender = order.actor;
+
+            tokenId = order.isCollectionBid ? fill.tokenId : order.tokenId;
+        } else {
+            revert InvalidOrderSide();
+        }
+
+        _settlePayment(order.currency, spender, nftHolder, order.price);
+
+        _transferNFT(order.collection, nftHolder, spender, tokenId);
     }
 
     // ===== INTERNAL FUNCTIONS =====
@@ -117,9 +133,9 @@ contract OrderEngine is ReentrancyGuard {
      */
     function _settlePayment(
         address currency,
-        uint256 amount,
         address from,
-        address to
+        address to,
+        uint256 amount
     ) internal {
         uint256 sellerCompensation = amount;
 

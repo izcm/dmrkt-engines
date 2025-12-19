@@ -26,8 +26,6 @@ import {IWETH} from "periphery/interfaces/IWETH.sol";
 /*
     // === REVERTS ===
 
-    // invalid signature (wrong signer / wrong order fields)
-    // reused nonce
     // order.actor == address(0)
     // currency != WETH
     // unsupported collection (not ERC721)

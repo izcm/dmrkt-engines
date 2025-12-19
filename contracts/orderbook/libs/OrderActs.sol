@@ -3,8 +3,8 @@ pragma solidity ^0.8.30;
 
 library OrderActs {
     enum Side {
-        Ask,
-        Bid
+        Ask, // 0
+        Bid // 1
     }
 
     /// Maker's Intent
@@ -19,6 +19,14 @@ library OrderActs {
         uint64 start;
         uint64 end;
         uint256 nonce;
+    }
+
+    function isAsk(Order memory o) internal pure returns (bool) {
+        return o.side == Side.Ask;
+    }
+
+    function isBid(Order memory o) internal pure returns (bool) {
+        return o.side == Side.Bid;
     }
 
     // bytes constraints; remember to keccak dynamic values in an inner keccak256 when hashing
@@ -37,20 +45,21 @@ library OrderActs {
 
     // TODO: implement this in assembly and test gas savings
     function hash(Order memory o) internal pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                ORDER_TYPE_HASH,
-                o.actor,
-                o.isCollectionBid,
-                o.collection,
-                o.tokenId,
-                o.price,
-                o.currency,
-                o.side,
-                o.start,
-                o.end,
-                o.nonce
-            )
-        );
+        return
+            keccak256(
+                abi.encode(
+                    ORDER_TYPE_HASH,
+                    o.actor,
+                    o.isCollectionBid,
+                    o.collection,
+                    o.tokenId,
+                    o.price,
+                    o.currency,
+                    o.side,
+                    o.start,
+                    o.end,
+                    o.nonce
+                )
+            );
     }
 }
