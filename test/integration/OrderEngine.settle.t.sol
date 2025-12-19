@@ -1,9 +1,11 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
+
+import {console} from "forge-std/console.sol";
 
 // token interfaces
 import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
-import {IERC20} from "@openzeppelin/interfaces/IERC20.sol";
+import {IERC20, SafeERC20} from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
 // local
 import {OrderEngine} from "orderbook/OrderEngine.sol";
@@ -18,6 +20,9 @@ import {AccountsHelper} from "test-helpers/AccountsHelper.sol";
 import {MockWETH} from "mocks/MockWETH.sol";
 import {MockERC721} from "mocks/MockERC721.sol";
 
+// interfaces
+import {IMintable721} from "periphery/interfaces/IMintable.sol";
+import {IWETH} from "periphery/interfaces/IWETH.sol";
 /*
     // === REVERTS ===
 
@@ -39,7 +44,11 @@ import {MockERC721} from "mocks/MockERC721.sol";
     // valid signature allows settle to proceed
 */
 
+// NOTE:
+// Tests use SafeERC20 for consistency with production paths.
+// ERC20 edge-case behavior is not explicitly tested here.
 contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
+    using SafeERC20 for IERC20; // mirrors actual engine
     using OrderActs for OrderActs.Order;
 
     uint256 constant DEFAULT_TOKENID = 1;
@@ -47,19 +56,28 @@ contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
     OrderEngine orderEngine;
     bytes32 domainSeparator;
 
-    address nftTransferAuthority; // future proofing in case of new transferManager
+    // rn both are orderengine, vars added for future-proofing
+    address erc721TransferAuthority;
+    address erc20Spender;
 
-    MockWETH weth;
-    MockERC721 erc721;
+    MockWETH wethToken;
+    MockERC721 erc721Token;
+
+    address weth;
+    address erc721;
 
     function setUp() public {
-        orderEngine = new OrderEngine(address(weth), address(this)); // fee receiver = this
+        wethToken = new MockWETH();
+        erc721Token = new MockERC721();
+
+        weth = address(wethToken);
+        erc721 = address(erc721Token);
+
+        orderEngine = new OrderEngine(weth, address(this)); // fee receiver = this
         domainSeparator = orderEngine.DOMAIN_SEPARATOR();
 
-        nftTransferAuthority = address(orderEngine);
-
-        weth = new MockWETH();
-        erc721 = new MockERC721();
+        erc721TransferAuthority = address(orderEngine);
+        erc20Spender = address(orderEngine);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -67,9 +85,9 @@ contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
     //////////////////////////////////////////////////////////////*/
     function test_Settle_InvalidSenderReverts() public {
         Actors memory actors = someActors("invalid_sender");
-        address txSender = vm.addr(TEST_KEYS.length + 1);
+        address txSender = vm.addr(actorCount() + 1); // private keys is [1, 2, 3... n]
 
-        OrderActs.Order memory order = makeOrder(actors.order);
+        OrderActs.Order memory order = makeAsk(actors.order); // should fail before currency revert
         OrderActs.Fill memory fill = makeFill(actors.fill);
         SigOps.Signature memory sig = dummySig();
 
@@ -82,7 +100,7 @@ contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
         Actors memory actors = someActors("reuse_nonce");
         uint256 signerPk = pkOf(actors.order);
 
-        OrderActs.Order memory order = makeOrder(actors.order, address(weth));
+        OrderActs.Order memory order = makeAsk(actors.order, erc721, weth);
 
         (, SigOps.Signature memory sig) = makeDigestAndSign(
             order,
@@ -91,6 +109,8 @@ contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
         );
 
         OrderActs.Fill memory fill = makeFill(actors.fill);
+
+        legitimizeOrder(order, actors);
 
         // valid nonce
         vm.prank(actors.fill);
@@ -103,17 +123,54 @@ contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
     }
 
     // === INTERNAL HELPERS ===
-    function doAllOrderApprovals(OrderActs.Order memory order) internal {
-        address collection = order.collection;
-        uint256 price = order.price;
 
-        if (order.side == OrderActs.Side.Ask) {
-            uint256 tokenId = order.tokenId;
+    function legitimizeOrder(
+        OrderActs.Order memory o,
+        Actors memory a
+    ) internal {
+        address collection = o.collection;
+        uint256 price = o.price;
+        address currency = o.currency;
+
+        address nftHolder;
+        address spender;
+
+        if (o.side == OrderActs.Side.Ask) {
+            nftHolder = a.order;
+            spender = a.fill;
+        } else {
+            // if is bid, then strap the actor.filler with an nft
+            nftHolder = a.fill;
+            spender = a.order;
         }
+
+        // TODO: if collectionbid handle this better
+        uint256 tokenId = o.tokenId;
+
+        // future proofing in case future support for other currencies
+        if (currency == weth) {
+            dealWETHViaDeposit(spender, price);
+        }
+
+        // NFT
+        vm.startPrank(nftHolder);
+        mintMockNft(nftHolder, tokenId);
+        approveNftTransfer(collection, erc721TransferAuthority, tokenId);
+        vm.stopPrank();
+
+        // ERC20
+        vm.prank(spender);
+        forceApproveAllowance(currency, erc20Spender, price);
     }
 
-    function approveNftTransfer(address collection, uint256 tokenId) internal {
-        approveNftTransfer(collection, nftTransferAuthority, tokenId);
+    function mintMockNft(address to, uint256 tokenId) internal {
+        IMintable721(erc721).mint(to, tokenId);
+    }
+
+    function dealWETHViaDeposit(address to, uint256 amount) internal {
+        vm.deal(to, amount);
+        vm.prank(to);
+        IWETH(weth).deposit{value: amount}();
     }
 
     function approveNftTransfer(
@@ -124,22 +181,12 @@ contract OrderEngineSettleTest is OrderHelper, AccountsHelper {
         IERC721(collection).approve(operator, tokenId);
     }
 
-    function approveAllowance(uint256 value) internal {
-        approveAllowance(weth, address(orderEngine), value);
-    }
-
-    function approveAllowance(IERC20 token, uint256 value) internal {
-        approveAllowance(token, address(orderEngine), value);
-    }
-
-    function approveAllowance(
-        IERC20 token,
+    function forceApproveAllowance(
+        address tokenContract,
         address spender,
         uint256 value
     ) internal {
-        bool success = token.approve(spender, value);
-
-        require(success, "Failed to set allowance");
+        IERC20(tokenContract).forceApprove(spender, value);
     }
 
     function makeFill(

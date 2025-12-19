@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
@@ -11,67 +11,52 @@ import {OrderBuilder} from "periphery/OrderBuilder.sol";
 abstract contract OrderHelper is Test {
     using OrderActs for OrderActs.Order;
 
-    uint256 internal constant DEFAULT_PRICE = 1 ether;
+    address constant DUMMY_COLLECTION = address(0xC011EC710);
+    address constant DUMMY_CURRENCY = address(0xC0FFEE);
 
-    address internal collection = makeAddr("collection");
-    address internal defaultCurrency = makeAddr("currency");
+    uint256 constant DEFAULT_PRICE = 1 ether;
+    uint256 constant DEFAULT_TOKEN_ID = 1;
 
     // === MAKE ORDERS ===
 
-    function makeOrder(
+    function makeAsk(
         address actor
-    ) internal view returns (OrderActs.Order memory) {
-        return makeOrder(actor, 0, defaultCurrency, DEFAULT_PRICE);
+    ) internal view returns (OrderActs.Order memory order) {
+        return makeAsk(actor, DUMMY_COLLECTION, DUMMY_CURRENCY);
     }
-
-    function makeOrder(
+    function makeAsk(
         address actor,
+        address collection,
         address currency
     ) internal view returns (OrderActs.Order memory) {
-        return makeOrder(actor, 0, currency, DEFAULT_PRICE);
+        return makeAsk(actor, collection, currency, DEFAULT_PRICE, 0);
     }
 
-    function makeOrder(
+    function makeAsk(
         address actor,
+        address collection,
+        address currency,
+        uint256 price,
         uint256 nonce
     ) internal view returns (OrderActs.Order memory) {
-        return makeOrder(actor, nonce, defaultCurrency, DEFAULT_PRICE);
-    }
-
-    function makeOrder(
-        address actor,
-        uint256 nonce,
-        address currency
-    ) internal view returns (OrderActs.Order memory) {
-        return makeOrder(actor, nonce, currency, DEFAULT_PRICE);
-    }
-
-    function makeOrder(
-        address actor,
-        uint256 nonce,
-        address currency,
-        uint256 price
-    ) internal view returns (OrderActs.Order memory) {
         return
-            OrderActs.Order({
-                side: OrderActs.Side.Ask,
-                actor: actor,
-                isCollectionBid: false,
-                collection: collection,
-                currency: currency,
-                tokenId: 1,
-                price: price,
-                start: 0,
-                end: uint64(block.timestamp + 1 days),
-                nonce: nonce
-            });
+            _makeOrder(
+                OrderActs.Side.Ask,
+                actor,
+                false, // isCollectionBid
+                collection,
+                DEFAULT_TOKEN_ID,
+                currency,
+                price,
+                nonce
+            );
     }
 
     function _makeOrder(
         OrderActs.Side side,
         address actor,
         bool isCollectionBid,
-        address collection_,
+        address collection,
         uint256 tokenId,
         address currency,
         uint256 price,
@@ -82,7 +67,7 @@ abstract contract OrderHelper is Test {
                 side: side,
                 actor: actor,
                 isCollectionBid: isCollectionBid,
-                collection: collection_,
+                collection: collection,
                 currency: currency,
                 tokenId: tokenId,
                 price: price,
@@ -122,7 +107,7 @@ abstract contract OrderHelper is Test {
         view
         returns (OrderActs.Order memory order, SigOps.Signature memory sig)
     {
-        order = makeOrder(signer);
+        order = makeAsk(signer);
         bytes32 digest = makeDigest(order, domainSeparator);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, digest);

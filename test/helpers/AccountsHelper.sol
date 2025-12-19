@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
@@ -9,25 +9,33 @@ abstract contract AccountsHelper is Test {
         address fill;
     }
 
-    uint256[7] public TEST_KEYS = [1, 2, 3, 4, 5, 6, 7];
+    uint256[7] private testKeys = [1, 2, 3, 4, 5, 6, 7];
 
-    function addrOf(uint256 pk) internal view returns (address) {
+    function actorCount() internal view returns (uint256) {
+        return testKeys.length;
+    }
+
+    function addrOf(uint256 pk) internal pure returns (address) {
         return vm.addr(pk);
     }
 
     function pkOf(address target) internal view returns (uint256) {
-        for (uint256 i = 0; i < TEST_KEYS.length; i++) {
-            uint256 pk = TEST_KEYS[i];
+        for (uint256 i = 0; i < testKeys.length; i++) {
+            uint256 pk = testKeys[i];
             if (vm.addr(pk) == target) {
                 return pk;
             }
         }
-        revert("Address not in TEST_KEYS");
+        revert("Address not in testKeys");
+    }
+
+    function fundActor(address a, uint256 v) internal {
+        vm.deal(a, v);
     }
 
     function actor(string memory seed) internal view returns (address) {
-        uint256 idx = uint256(keccak256(abi.encode(seed))) % TEST_KEYS.length;
-        return addrOf(TEST_KEYS[idx]);
+        uint256 idx = uint256(keccak256(abi.encode(seed))) % testKeys.length;
+        return addrOf(testKeys[idx]);
     }
 
     function someActors(
@@ -44,11 +52,11 @@ abstract contract AccountsHelper is Test {
     }
 
     function allActors() internal view returns (address[] memory) {
-        uint256 count = TEST_KEYS.length;
+        uint256 count = testKeys.length;
         address[] memory users = new address[](count);
 
         for (uint256 i = 0; i < count; i++) {
-            users[i] = addrOf(TEST_KEYS[i]);
+            users[i] = addrOf(testKeys[i]);
         }
 
         return users;

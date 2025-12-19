@@ -1,4 +1,4 @@
-// test/mocks/MockWETH.sol
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 import {ERC20} from "@openzeppelin/token/ERC20/ERC20.sol";
@@ -6,7 +6,7 @@ import {ERC20} from "@openzeppelin/token/ERC20/ERC20.sol";
 contract MockWETH is ERC20 {
     constructor() ERC20("Wrapped Ether", "WETH") {}
 
-    function mint(address to, uint256 amount) external {
-        _mint(to, amount);
+    function deposit() external payable {
+        _mint(msg.sender, msg.value);
     }
 }

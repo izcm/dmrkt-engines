@@ -82,7 +82,7 @@ contract OrderEngine is ReentrancyGuard {
 
         _settlePayment(order.currency, order.price, fill.actor, order.actor);
 
-        _transferNFT(order.collection, fill.actor, order.actor, tokenId);
+        _transferNFT(order.collection, order.actor, fill.actor, tokenId);
     }
 
     // ===== INTERNAL FUNCTIONS =====

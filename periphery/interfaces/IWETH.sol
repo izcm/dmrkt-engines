@@ -3,6 +3,7 @@ pragma solidity ^0.8.30;
 
 import {IERC20} from "@openzeppelin/interfaces/IERC20.sol";
 
+// per now only used in dev-scripts
 interface IWETH is IERC20 {
     function deposit() external payable;
 
