@@ -1,28 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import {console} from "forge-std/console.sol";
-
 // local
+import {OrderEngineSettleBase} from "./OrderEngine.settle.base.t.sol";
+
 import {OrderEngine} from "orderbook/OrderEngine.sol";
 import {OrderActs} from "orderbook/libs/OrderActs.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
-// helpers
-import {OrderHelper} from "test-helpers/OrderHelper.sol";
-import {AccountsHelper} from "test-helpers/AccountsHelper.sol";
-import {SettlementHelper} from "test-helpers/SettlementHelper.sol";
-
 // mocks
-import {MockWETH} from "mocks/MockWETH.sol";
-import {MockERC721} from "mocks/MockERC721.sol";
 import {MockUnsupported} from "mocks/MockUnsupported.sol";
-
-/*
-    // === SIGNATURE (INTEGRATION ONLY) ===
-
-    // invalid signature causes settle to revert
-*/
 
 /// NOTE:
 /// When testing branches that revert before any `order.Side` logic,
@@ -30,42 +17,7 @@ import {MockUnsupported} from "mocks/MockUnsupported.sol";
 ///
 /// When behavior depends on `Side`, dedicated tests are added
 /// for `Ask`, `Bid`, and `CollectionBid`.
-contract OrderEngineSettleRevertsTest is
-    OrderHelper,
-    AccountsHelper,
-    SettlementHelper
-{
-    using OrderActs for OrderActs.Order;
-
-    uint256 private constant DEFAULT_ACTOR_COUNT = 10; // adjust as you please
-
-    OrderEngine orderEngine;
-    address erc721;
-
-    function setUp() public {
-        MockWETH wethToken = new MockWETH();
-        MockERC721 erc721Token = new MockERC721();
-
-        address weth = address(wethToken);
-        erc721 = address(erc721Token);
-
-        orderEngine = new OrderEngine(weth, address(this)); // fee receiver = this
-        bytes32 domainSeparator = orderEngine.DOMAIN_SEPARATOR();
-
-        // future proofing in case auth decentralizes from orderEngine
-        address erc721TransferOperator = address(orderEngine);
-        address erc20AllowanceSpender = address(orderEngine);
-
-        _initSettlementHelper(
-            weth,
-            erc721TransferOperator,
-            erc20AllowanceSpender
-        );
-        _initOrderHelper(domainSeparator);
-
-        _initActors(DEFAULT_ACTOR_COUNT);
-    }
-
+contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
     /*//////////////////////////////////////////////////////////////
                     VALID SIGNATURE NOT REQUIRED
     //////////////////////////////////////////////////////////////*/
@@ -166,7 +118,7 @@ contract OrderEngineSettleRevertsTest is
 
         OrderActs.Fill memory fill = makeFill(actors.fill);
 
-        // decrease price
+        // tamper price
         order.price = 10;
 
         vm.prank(actors.fill);

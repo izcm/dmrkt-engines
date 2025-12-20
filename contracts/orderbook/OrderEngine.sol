@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-// open zeppelin
+// oz
 import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
 import {IERC165} from "@openzeppelin/interfaces/IERC165.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
@@ -12,9 +12,6 @@ import "./libs/OrderActs.sol";
 import {SignatureOps as SigOps} from "./libs/SignatureOps.sol";
 
 bytes4 constant INTERFACE_ID_ERC721 = 0x80ac58cd;
-
-// TODO: when implementing support for other currency than WETH:
-// lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol
 
 contract OrderEngine is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -36,16 +33,16 @@ contract OrderEngine is ReentrancyGuard {
     // === IMMUTABLES ===
     bytes32 public immutable DOMAIN_SEPARATOR;
     address public immutable WETH;
-    uint256 public immutable PROTOCOL_FEE_BPS = 1; // immutable for simplicity
+    uint256 public immutable PROTOCOL_FEE_BPS = 100; // immutable for simplicity
 
-    address public protocolFeeReceiver;
+    address public protocolFeeRecipient;
 
     // TODO: mapping(address => mapping(uint256 => uint256)) nonceBitmap;
     // ====> each uint256 packs 256 nonces
     mapping(address => mapping(uint256 => bool))
         private _isUserOrderNonceInvalid;
 
-    constructor(address weth, address feeReceiver) {
+    constructor(address weth, address feeRecipient) {
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 // EIP-712 domain type hash
@@ -61,7 +58,7 @@ contract OrderEngine is ReentrancyGuard {
         );
 
         WETH = weth;
-        protocolFeeReceiver = feeReceiver;
+        protocolFeeRecipient = feeRecipient;
     }
 
     // ===== EXTERNAL FUNCTIONS =====
@@ -154,12 +151,12 @@ contract OrderEngine is ReentrancyGuard {
 
         // stage 1: calculate protocol fee
         {
-            uint256 feeAmount = (amount * PROTOCOL_FEE_BPS) / 100;
+            uint256 feeAmount = (amount * PROTOCOL_FEE_BPS) / 10000;
 
             // using SafeERC20 for future proofing
             IERC20(currency).safeTransferFrom(
                 from,
-                protocolFeeReceiver,
+                protocolFeeRecipient,
                 feeAmount
             );
 

@@ -80,7 +80,20 @@ contract SignatureOpsTest is OrderHelper {
         verifier.verify(order, sig);
     }
 
-    function test_Verify_CorruptedV_Reverts() public {}
+    function test_Verify_CorruptedV_Reverts() public {
+        (
+            OrderActs.Order memory order,
+            SigOps.Signature memory sig
+        ) = makeOrderDigestAndSign(signer, signerPk);
+
+        assertTrue(sig.v == 27 || sig.v == 28);
+
+        sig.v = 29;
+
+        vm.prank(user);
+        vm.expectRevert(SigOps.InvalidYParity.selector);
+        verifier.verify(order, sig);
+    }
 
     function test_Verify_WrongSigner_Reverts() public {
         (
