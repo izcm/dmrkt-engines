@@ -28,7 +28,11 @@ contract SignatureOpsTest is OrderHelper {
         user = vm.addr(userPrivateKey);
         signer = vm.addr(signerPk);
 
-        _initOrderHelper(domainSeparator);
+        _initOrderHelper(
+            domainSeparator,
+            makeAddr("dummy_collection"),
+            makeAddr("dummy_currency")
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

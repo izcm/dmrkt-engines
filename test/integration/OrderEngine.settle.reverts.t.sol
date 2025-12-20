@@ -10,7 +10,10 @@ import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
 // mocks
 import {MockUnsupported} from "mocks/MockUnsupported.sol";
+import {MockERC721} from "mocks/MockERC721.sol";
 
+// function test_Settle_OrderNotStarted_Reverts()
+// function test_Settle_OrderExpired_Reverts()
 /// NOTE:
 /// When testing branches that revert before any `order.Side` logic,
 /// the order defaults to `Ask` for simplicity.
@@ -22,9 +25,9 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
                     VALID SIGNATURE NOT REQUIRED
     //////////////////////////////////////////////////////////////*/
 
-    function test_Settle_InvalidSenderReverts() public {
+    function test_Settle_InvalidSender_Reverts() public {
         Actors memory actors = someActors("invalid_sender");
-        address txSender = vm.addr(actorCount() + 1); // private keys is [1, 2, 3... n]
+        address txSender = vm.addr(actorCount() + 1); // private keys are [1, 2, 3... n]
 
         OrderActs.Order memory order = makeAsk(actors.order);
         OrderActs.Fill memory fill = makeFill(actors.fill);
@@ -35,17 +38,13 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
         orderEngine.settle(fill, order, sig);
     }
 
-    function test_Settle_ZeroAsOrderActorReverts() public {
+    function test_Settle_ZeroAsOrderActor_Reverts() public {
         Actors memory actors = Actors({
             order: address(0),
             fill: actor("not_important")
         });
 
-        OrderActs.Order memory order = makeAsk(
-            actors.order,
-            erc721,
-            wethAddr()
-        );
+        OrderActs.Order memory order = makeAsk(actors.order);
 
         SigOps.Signature memory sig = dummySig();
 
@@ -56,8 +55,9 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
         orderEngine.settle(fill, order, sig);
     }
 
-    function test_Settle_NonWhitelistedCurrencyReverts() public {
+    function test_Settle_NonWhitelistedCurrency_Reverts() public {
         string memory seed = "non_whitelisted_currency";
+        MockERC721 supportedCollection = new MockERC721();
 
         // per today orderbook only supports WETH
         Actors memory actors = someActors(seed);
@@ -65,9 +65,9 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
         address nonWhitelistedCurrency = makeAddr(seed);
 
         OrderActs.Order memory order = makeAsk(
-            actors.order,
-            erc721,
-            nonWhitelistedCurrency
+            address(supportedCollection),
+            nonWhitelistedCurrency,
+            actors.order
         );
 
         SigOps.Signature memory sig = dummySig();
@@ -83,15 +83,11 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
                     VALID SIGNATURE REQUIRED
     //////////////////////////////////////////////////////////////*/
 
-    function test_Settle_InvalidOrderSideReverts() public {
+    function test_Settle_InvalidOrderSide_Reverts() public {
         Actors memory actors = someActors("invalid_side");
         uint256 signerPk = pkOf(actors.order);
 
-        OrderActs.Order memory order = makeAsk(
-            actors.order,
-            erc721,
-            wethAddr()
-        );
+        OrderActs.Order memory order = makeAsk(actors.order);
 
         order.side = OrderActs.Side._COUNT; // invalid
 
@@ -104,15 +100,11 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
         orderEngine.settle(fill, order, sig);
     }
 
-    function test_Settle_TamperedOrderReverts() public {
+    function test_Settle_TamperedOrder_Reverts() public {
         Actors memory actors = someActors("sig_mismatch");
         uint256 signerPk = pkOf(actors.order);
 
-        OrderActs.Order memory order = makeAsk(
-            actors.order,
-            erc721,
-            wethAddr()
-        );
+        OrderActs.Order memory order = makeAsk(actors.order);
 
         (, SigOps.Signature memory sig) = makeDigestAndSign(order, signerPk);
 
@@ -130,15 +122,11 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
                 VALID SIGNATURE + APPROVALS REQUIRED
     //////////////////////////////////////////////////////////////*/
 
-    function test_Settle_ReusedNonceReverts() public {
+    function test_Settle_ReusedNonce_Reverts() public {
         Actors memory actors = someActors("reuse_nonce");
         uint256 signerPk = pkOf(actors.order);
 
-        OrderActs.Order memory order = makeAsk(
-            actors.order,
-            erc721,
-            wethAddr()
-        );
+        OrderActs.Order memory order = makeAsk(actors.order);
 
         (, SigOps.Signature memory sig) = makeDigestAndSign(order, signerPk);
 
@@ -156,16 +144,16 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
         orderEngine.settle(fill, order, sig);
     }
 
-    function test_Settle_UnsupportedCollectionReverts() public {
+    function test_Settle_UnsupportedCollection_Reverts() public {
         Actors memory actors = someActors("unsupported_collection");
         uint256 signerPk = pkOf(actors.order);
 
         MockUnsupported unsupportedCollection = new MockUnsupported();
 
         OrderActs.Order memory order = makeAsk(
-            actors.order,
             address(unsupportedCollection),
-            wethAddr()
+            wethAddr(),
+            actors.order
         );
 
         (, SigOps.Signature memory sig) = makeDigestAndSign(order, signerPk);

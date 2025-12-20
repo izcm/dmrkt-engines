@@ -6,66 +6,102 @@ import {Test} from "forge-std/Test.sol";
 // local
 import {OrderActs} from "orderbook/libs/OrderActs.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
-import {OrderBuilder} from "periphery/OrderBuilder.sol";
 
 abstract contract OrderHelper is Test {
     using OrderActs for OrderActs.Order;
-
-    address private constant DUMMY_COLLECTION = address(0xC011EC710);
-    address private constant DUMMY_CURRENCY = address(0xC0FFEE);
 
     uint256 private constant DEFAULT_PRICE = 1 ether;
     uint256 private constant DEFAULT_TOKEN_ID = 1;
 
     bytes32 private domainSeparator;
+    address private defaultCurrency; // WETH
+    address private defaultCollection; // some erc721
 
-    function _initOrderHelper(bytes32 _domainSeparator) internal {
+    function _initOrderHelper(
+        bytes32 _domainSeparator,
+        address _defaultCollection,
+        address _defaultCurrency
+    ) internal {
         domainSeparator = _domainSeparator;
+        defaultCollection = _defaultCollection;
+        defaultCurrency = _defaultCurrency;
     }
+
     // === MAKE ORDERS ===
 
+    // === ASK ===
     function makeAsk(
         address actor
     ) internal view returns (OrderActs.Order memory order) {
-        return makeAsk(actor, DUMMY_COLLECTION, DUMMY_CURRENCY);
+        return makeOrder(OrderActs.Side.Ask, false, actor);
     }
 
     function makeAsk(
-        address actor,
-        address collection,
-        address currency
-    ) internal view returns (OrderActs.Order memory) {
-        return makeAsk(actor, collection, currency, DEFAULT_PRICE, 0);
-    }
-
-    function makeAsk(
-        address actor,
         address collection,
         address currency,
+        address actor
+    ) internal view returns (OrderActs.Order memory) {
+        return
+            makeOrder(
+                OrderActs.Side.Ask,
+                collection,
+                false,
+                currency,
+                DEFAULT_PRICE,
+                actor,
+                0
+            );
+    }
+
+    // === BID / ASK ===
+
+    function makeOrder(
+        OrderActs.Side side,
+        bool isCollectionBid,
+        address actor
+    ) internal view returns (OrderActs.Order memory) {
+        return
+            makeOrder(
+                side,
+                defaultCollection,
+                isCollectionBid,
+                defaultCurrency,
+                DEFAULT_PRICE,
+                actor,
+                0
+            );
+    }
+
+    function makeOrder(
+        OrderActs.Side side,
+        address collection,
+        bool isCollectionBid,
+        address currency,
         uint256 price,
+        address actor,
         uint256 nonce
     ) internal view returns (OrderActs.Order memory) {
         return
             _makeOrder(
-                OrderActs.Side.Ask,
-                actor,
-                false, // isCollectionBid
+                side,
                 collection,
+                isCollectionBid,
                 DEFAULT_TOKEN_ID,
                 currency,
                 price,
+                actor,
                 nonce
             );
     }
 
     function _makeOrder(
         OrderActs.Side side,
-        address actor,
-        bool isCollectionBid,
         address collection,
+        bool isCollectionBid,
         uint256 tokenId,
         address currency,
         uint256 price,
+        address actor,
         uint256 nonce
     ) internal view returns (OrderActs.Order memory) {
         return

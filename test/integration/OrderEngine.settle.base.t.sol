@@ -24,7 +24,6 @@ abstract contract OrderEngineSettleBase is
     uint256 internal constant DEFAULT_ACTOR_COUNT = 10;
 
     OrderEngine internal orderEngine;
-    address internal erc721;
 
     address internal protocolFeeRecipient;
 
@@ -33,7 +32,7 @@ abstract contract OrderEngineSettleBase is
         MockERC721 erc721Token = new MockERC721();
 
         address weth = address(wethToken);
-        erc721 = address(erc721Token);
+        address erc721 = address(erc721Token);
 
         protocolFeeRecipient = address(this);
         orderEngine = new OrderEngine(weth, protocolFeeRecipient);
@@ -46,7 +45,7 @@ abstract contract OrderEngineSettleBase is
             address(orderEngine) // ERC20 spender
         );
 
-        _initOrderHelper(domainSeparator);
+        _initOrderHelper(domainSeparator, erc721, weth);
         _initActors(DEFAULT_ACTOR_COUNT);
     }
 }

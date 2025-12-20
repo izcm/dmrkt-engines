@@ -12,22 +12,6 @@ import {OrderEngineSettleBase} from "./OrderEngine.settle.base.t.sol";
 import {OrderActs} from "orderbook/libs/OrderActs.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
-// === SETTLE SUCCESS PATHS ===
-//
-// 1) Ask order succeeds
-//    - test_Settle_Ask_Succeeds
-//
-// 2) Bid order (specific tokenId) succeeds
-//    - test_Settle_Bid_SpecificToken_Succeeds
-//
-// 3) Bid order (collection bid, fill.tokenId) succeeds
-//    - test_Settle_Bid_CollectionBid_Succeeds
-//  +
-//  assertTrue(
-//  orderEngine.isUserOrderNonceInvalid(order.actor, order.nonce)
-//);
-// for each test
-
 struct Balances {
     uint256 spender;
     uint256 nftHolder;
@@ -35,21 +19,47 @@ struct Balances {
 }
 
 contract OrderEngineSettleSuccessTest is OrderEngineSettleBase {
+    using OrderActs for OrderActs.Order;
+
     function test_Settle_Ask_Succeeds() public {
-        Actors memory actors = someActors("ask_success");
+        _assertSettleSucceeds(OrderActs.Side.Ask, false, someActors("ask"));
+    }
+
+    function test_Settle_Bid_SpecificToken_Succeeds() public {
+        _assertSettleSucceeds(
+            OrderActs.Side.Bid,
+            false,
+            someActors("bid_specific")
+        );
+    }
+
+    function test_Settle_Bid_CollectionBid_Succeeds() public {
+        _assertSettleSucceeds(
+            OrderActs.Side.Bid,
+            true,
+            someActors("bid_collection")
+        );
+    }
+
+    function _assertSettleSucceeds(
+        OrderActs.Side side,
+        bool isCollectionBid,
+        Actors memory actors
+    ) internal {
         uint256 signerPk = pkOf(actors.order);
 
-        IERC721 nftToken = IERC721(erc721);
-
-        OrderActs.Order memory order = makeAsk(
-            actors.order,
-            address(nftToken),
-            wethAddr()
+        // defaults to mockEERC721 + WETH
+        OrderActs.Order memory order = makeOrder(
+            side,
+            isCollectionBid,
+            actors.order
         );
 
         (, SigOps.Signature memory sig) = makeDigestAndSign(order, signerPk);
 
-        OrderActs.Fill memory fill = makeFill(actors.fill);
+        uint256 tokenIdFill = order.isBid() ? order.tokenId : 0;
+
+        OrderActs.Fill memory fill = makeFill(actors.fill, tokenIdFill);
 
         legitimizeSettlement(fill, order);
 
@@ -85,21 +95,18 @@ contract OrderEngineSettleSuccessTest is OrderEngineSettleBase {
         );
 
         // check new ownership
-        address finalNftHolder = nftToken.ownerOf(tokenId);
-        assertEq(finalNftHolder, spender);
+        assertEq(IERC721(order.collection).ownerOf(tokenId), spender);
 
         assertTrue(
             orderEngine.isUserOrderNonceInvalid(order.actor, order.nonce)
         );
     }
 
-    function test_Settle_Bid_SpecificToken_Succeeds() public {}
-
     function _assertPayoutMatchesExpectations(
         Balances memory before,
         Balances memory after_, // _ suffix since `after` is a reserved keyword
         uint256 orderPrice
-    ) internal {
+    ) internal view {
         uint256 fee = _protocolFee(orderPrice);
         uint256 payout = orderPrice - fee;
 
@@ -107,7 +114,7 @@ contract OrderEngineSettleSuccessTest is OrderEngineSettleBase {
         uint256 nftHolderDiff = after_.nftHolder - before.nftHolder; // should increase
         uint256 protocolDiff = after_.protocol - before.protocol; // should increase
 
-        // assertEq(spenderDiff, payout);
+        assertEq(spenderDiff, orderPrice);
         assertEq(nftHolderDiff, payout);
         assertEq(protocolDiff, fee);
     }
@@ -120,7 +127,7 @@ contract OrderEngineSettleSuccessTest is OrderEngineSettleBase {
         IERC20 token,
         address spender,
         address nftHolder
-    ) internal returns (Balances memory b) {
+    ) internal view returns (Balances memory b) {
         b.spender = token.balanceOf(spender);
         b.nftHolder = token.balanceOf(nftHolder);
         b.protocol = token.balanceOf(protocolFeeRecipient);

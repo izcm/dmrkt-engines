@@ -111,7 +111,7 @@ abstract contract SettlementHelper is Test {
 
     function makeFill(
         address actor
-    ) internal view returns (OrderActs.Fill memory fill) {
+    ) internal pure returns (OrderActs.Fill memory fill) {
         return OrderActs.Fill({actor: actor, tokenId: DEFAULT_TOKEN_ID});
     }
 
