@@ -24,6 +24,16 @@ struct Balances {
 contract OrderEngineSettleSuccessTest is OrderEngineSettleBase {
     using OrderActs for OrderActs.Order;
 
+    event Settlement(
+        bytes32 indexed orderHash,
+        address indexed collection,
+        uint256 indexed tokenId,
+        address seller,
+        address buyer,
+        address currency,
+        uint256 price
+    );
+
     function test_Settle_Ask_Succeeds() public {
         _assertSettleSucceeds(OrderActs.Side.Ask, false, someActors("ask"));
     }
@@ -76,6 +86,17 @@ contract OrderEngineSettleSuccessTest is OrderEngineSettleBase {
             token,
             spender,
             nftHolder
+        );
+
+        vm.expectEmit(true, true, true, true);
+        emit Settlement(
+            order.hash(),
+            order.collection,
+            tokenId,
+            nftHolder,
+            spender,
+            order.currency,
+            order.price
         );
 
         vm.prank(actors.fill);

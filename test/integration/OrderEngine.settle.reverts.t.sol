@@ -12,8 +12,6 @@ import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 import {MockUnsupported} from "mocks/MockUnsupported.sol";
 import {MockERC721} from "mocks/MockERC721.sol";
 
-// function test_Settle_OrderNotStarted_Reverts()
-// function test_Settle_OrderExpired_Reverts()
 /// NOTE:
 /// When testing branches that revert before any `order.Side` logic,
 /// the order defaults to `Ask` for simplicity.

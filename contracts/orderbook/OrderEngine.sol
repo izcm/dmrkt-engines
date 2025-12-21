@@ -46,7 +46,7 @@ contract OrderEngine is ReentrancyGuard {
     event Settlement(
         bytes32 indexed orderHash,
         address indexed collection,
-        uint256 tokenId,
+        uint256 indexed tokenId,
         address seller,
         address buyer,
         address currency,
@@ -121,8 +121,8 @@ contract OrderEngine is ReentrancyGuard {
             orderHash,
             order.collection,
             tokenId,
-            spender,
             nftHolder, // **the nftHolder PRE transfer**
+            spender,
             order.currency, // future proofing
             order.price
         );
