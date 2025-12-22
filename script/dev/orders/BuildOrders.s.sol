@@ -5,22 +5,22 @@ pragma solidity ^0.8.30;
 import {Config} from "forge-std/Config.sol";
 import {console} from "forge-std/console.sol";
 
-// interfaces
-import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
-
-// scripts
-import {BaseDevScript} from "dev/BaseDevScript.s.sol";
-
-// contracts
+// core
 import {OrderEngine} from "orderbook/OrderEngine.sol";
 
 // core libraries
 import {OrderActs} from "orderbook/libs/OrderActs.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
-// peiphery libraries
+// periphery libraries
 import {MarketSim} from "periphery/MarketSim.sol";
 import {OrderBuilder} from "periphery/builders/OrderBuilder.sol";
+
+// scripts
+import {BaseDevScript} from "dev/BaseDevScript.s.sol";
+
+// interfaces
+import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
 
 interface DNFT {
     function MAX_SUPPLY() external view returns (uint256);
@@ -106,7 +106,7 @@ contract BuildOrders is BaseDevScript, Config {
             uint256 pk = ownerPk[order.actor];
             require(pk != 0, "NO PK FOR ACTOR");
 
-            (SigOps.Signature memory sig) = _makeOrderDigestAndSign(
+            (SigOps.Signature memory sig) = signOrder(
                 order,
                 pk,
                 domainSeparator
@@ -178,7 +178,7 @@ contract BuildOrders is BaseDevScript, Config {
         return orders;
     }
 
-    function _makeOrderDigestAndSign(
+    function signOrder(
         OrderActs.Order memory order,
         uint256 actorPrivateKey,
         bytes32 domainSeparator
