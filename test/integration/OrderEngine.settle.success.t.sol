@@ -8,11 +8,11 @@ import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
 // local
 import {OrderEngineSettleBase} from "./OrderEngine.settle.base.t.sol";
 
-// libraries
+// core libs
 import {OrderActs} from "orderbook/libs/OrderActs.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
-// periphery
+// periphery libs
 import {SettlementRoles} from "orderbook/libs/SettlementRoles.sol";
 
 struct Balances {

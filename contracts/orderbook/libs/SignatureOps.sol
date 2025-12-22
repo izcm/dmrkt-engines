@@ -59,14 +59,19 @@ library SignatureOps {
         }
 
         // Build digest
-        bytes32 digest = keccak256(
-            abi.encodePacked("\x19\x01", domainSeparator, msgHash)
-        );
+        bytes32 digest = digest712(domainSeparator, msgHash);
 
         // Recover actual signer
         address actualSigner = recover(digest, v, r, s);
         if (actualSigner == address(0) || actualSigner != expectedSigner) {
             revert InvalidSignature();
         }
+    }
+
+    function digest712(
+        bytes32 domain,
+        bytes32 msgHash
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19\x01", domain, msgHash));
     }
 }

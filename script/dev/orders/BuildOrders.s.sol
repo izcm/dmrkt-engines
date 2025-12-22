@@ -8,10 +8,10 @@ import {console} from "forge-std/console.sol";
 // interfaces
 import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
 
-// local scripts
+// scripts
 import {BaseDevScript} from "dev/BaseDevScript.s.sol";
 
-// local contracts
+// contracts
 import {OrderEngine} from "orderbook/OrderEngine.sol";
 
 // core libraries
@@ -19,8 +19,8 @@ import {OrderActs} from "orderbook/libs/OrderActs.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
 // peiphery libraries
-import {OrderFactory} from "periphery/factories/OrderFactory.sol";
 import {MarketSim} from "periphery/MarketSim.sol";
+import {OrderBuilder} from "periphery/builders/OrderBuilder.sol";
 
 interface DNFT {
     function MAX_SUPPLY() external view returns (uint256);
@@ -161,12 +161,16 @@ contract BuildOrders is BaseDevScript, Config {
             uint256 price = MarketSim.priceOf(collection, tokenId, 0);
             uint256 nonce = ++nonceOf[owner];
 
-            orders[i] = OrderFactory.simpleAsk(
-                owner,
+            orders[i] = OrderBuilder.build(
+                OrderActs.Side.Ask,
+                false,
                 collection,
-                currency,
                 tokenId,
+                currency,
                 price,
+                owner,
+                uint64(block.timestamp),
+                uint64(block.timestamp + 7 days),
                 nonce
             );
         }

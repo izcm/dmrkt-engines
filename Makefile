@@ -8,10 +8,12 @@ include .env
 # paths
 DEPLOY_ORDER_ENGINE = script/DeployOrderEngine.s.sol
 PATH_DEV = script/dev
-PATH_BOOTSTRAP = $(PATH_DEV)/bootstrap
-PATH_ORDERS = $(PATH_DEV)/orders
-PATH_EXPORT = $(PATH_DEV)/export
+
+PATH_BOOTSTRAP = $(PATH_DEV)/genesis/bootstrap
 PATH_HISTORY = $(PATH_DEV)/history
+
+PATH_ORDERS = $(PATH_DEV)/orders
+PATH_EXPORT = $(PATH_ORDERS)/export
 
 WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
 RPC_URL = $(ANVIL_RPC_URL)
@@ -70,7 +72,7 @@ dev-bootstrap-accounts:
 
 dev-deploy-core:
 	@echo "🧾 Deploying core contracts..."
-	forge script $(PATH_DEV)/DeployCore.s.sol \
+	forge script $(PATH_DEV)/genesis/DeployCore.s.sol \
 		$(FORGE_COMMON_FLAGS)
 
 dev-bootstrap-nfts:

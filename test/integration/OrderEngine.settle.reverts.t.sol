@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-// local
-import {OrderEngineSettleBase} from "./OrderEngine.settle.base.t.sol";
-
+// core
 import {OrderEngine} from "orderbook/OrderEngine.sol";
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
-import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
+
+// base
+import {OrderEngineSettleBase} from "./OrderEngine.settle.base.t.sol";
 
 // mocks
 import {MockUnsupported} from "mocks/MockUnsupported.sol";
 import {MockERC721} from "mocks/MockERC721.sol";
+
+// core libs
+import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
 /// NOTE:
 /// When testing branches that revert before any `order.Side` logic,

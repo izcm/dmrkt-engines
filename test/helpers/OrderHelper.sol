@@ -3,7 +3,7 @@ pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
 
-// local
+// core libraries
 import {OrderActs} from "orderbook/libs/OrderActs.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
@@ -107,17 +107,14 @@ abstract contract OrderHelper is Test {
         returns (OrderActs.Order memory order, SigOps.Signature memory sig)
     {
         order = makeAsk(signer);
-        bytes32 digest = _makeDigest(order);
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, digest);
-        sig = SigOps.Signature({v: v, r: r, s: s});
+        (, sig) = signOrder(order, signerPk);
     }
 
     function signOrder(
         OrderActs.Order memory order,
         uint256 signerPk
     ) internal view returns (bytes32 digest, SigOps.Signature memory sig) {
-        digest = _makeDigest(order);
+        digest = SigOps.digest712(domainSeparator, order.hash());
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, digest);
         sig = SigOps.Signature(v, r, s);
@@ -125,14 +122,5 @@ abstract contract OrderHelper is Test {
 
     function dummySig() internal pure returns (SigOps.Signature memory) {
         return SigOps.Signature({v: 0, r: bytes32(0), s: bytes32(0)});
-    }
-
-    // === PRIVATE FUNCTIONS ===
-
-    function _makeDigest(
-        OrderActs.Order memory o
-    ) internal view returns (bytes32) {
-        return
-            keccak256(abi.encodePacked("\x19\x01", domainSeparator, o.hash()));
     }
 }

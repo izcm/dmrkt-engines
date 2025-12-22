@@ -3,7 +3,7 @@ pragma solidity ^0.8.30;
 
 import "orderbook/libs/OrderActs.sol";
 
-library FillFactory {
+library FillBuilder {
     uint256 internal constant DEFAULT_TOKEN_ID = 0;
 
     function make(address actor) internal pure returns (OrderActs.Fill memory) {

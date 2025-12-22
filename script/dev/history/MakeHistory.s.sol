@@ -12,7 +12,7 @@ import {OrderActs} from "orderbook/libs/OrderActs.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
 // periphery libraries
-import {OrderFactory} from "periphery/factories/OrderFactory.sol";
+import {OrderBuilder} from "periphery/builders/OrderBuilder.sol";
 
 contract MakeHistory is BaseDevScript, Config {
     uint256 internal HISTORY_START_TS;
