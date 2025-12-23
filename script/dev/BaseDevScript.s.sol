@@ -9,7 +9,7 @@ abstract contract BaseDevScript is Script {
     address[] private _participants;
 
     // Call this if the script needs to have easy access to pk => addr
-    function loadParticipants() internal {
+    function _loadParticipants() internal {
         uint256[] memory pks = readKeys();
 
         for (uint256 i = 0; i < pks.length; i++) {

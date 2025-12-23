@@ -27,10 +27,11 @@ struct SignedOrder {
 contract BuildOrders is BaseDevScript, BaseSettlement, Config {
     // ctx
     uint256 chainId;
-    uint256 internal weekIdx = 3; // plz dont hardcode this forever
-    // 3 because MakeHistory has [0, 1, 2]
+    uint256 internal epoch = 3; // 3 because MakeHistory has [0, 1, 2]  (plz dont hardcode this forever)
 
     address[] internal collections;
+
+    mapping(address => uint256[]) internal collectionSelected;
 
     function run() external {
         // --------------------------------
@@ -56,20 +57,19 @@ contract BuildOrders is BaseDevScript, BaseSettlement, Config {
         logAddress("SETTLER ", settlementContract);
 
         _initBaseSettlement(settlementContract, weth);
-
-        loadParticipants();
+        _loadParticipants();
 
         // --------------------------------
         // PHASE 1: MAKE ORDERS
         // --------------------------------
-        logSection("MAKE ORDERS: ASK");
+        logSection("MAKE ORDERS");
 
         OrderModel.Order[] memory orders = _collectAsks();
         uint256 orderCount = orders.length;
 
         SignedOrder[] memory signed = new SignedOrder[](orderCount);
 
-        // --- PKs for signing ---
+        // --- sign orders ---
 
         for (uint256 i = 0; i < orderCount; i++) {
             OrderModel.Order memory order = orders[i];
@@ -100,23 +100,46 @@ contract BuildOrders is BaseDevScript, BaseSettlement, Config {
         logSeparator();
     }
 
-    function _collectAsks() internal view returns (OrderModel.Order[] memory) {
+    function _collectAsks() internal returns (OrderModel.Order[] memory) {
         logSection("COLLECT ORDERS - ASK");
 
         OrderModel.Side side = OrderModel.Side.Ask;
         bool isCollectionBid = false;
 
-        return _collect(side, isCollectionBid);
+        return _selectAndStore(side, isCollectionBid);
     }
 
-    // will fix this to make sense after stack too deep is cleared...
-    function _collect(
+    function _selectAndStore(
         OrderModel.Side side,
         bool isCollectionBid
-    ) internal view returns (OrderModel.Order[] memory) {
-        address collection = collections[0]; // TODO: FIX
+    ) internal returns (OrderModel.Order[] memory) {
+        for (uint256 i = 0; i < collections.length; i++) {
+            address collection = collections[i];
+
+            uint256[] memory tokens = _hydrateAndSelectTokens(
+                side,
+                isCollectionBid,
+                collection
+            );
+
+            uint256[] storage acc = collectionSelected[collection];
+            for (uint256 j = 0; j < tokens.length; j++) {
+                acc.push(tokens[j]);
+            }
+
+            logTokenBalance("Selected tokens", collection, tokens.length);
+            logSeparator();
+        }
+
+        return _buildOrders(side, isCollectionBid);
+    }
+
+    function _hydrateAndSelectTokens(
+        OrderModel.Side side,
+        bool isCollectionBid,
+        address collection
+    ) internal view returns (uint256[] memory) {
         uint256 max = DNFT(collection).MAX_SUPPLY();
-        uint256 epoch = 0;
 
         uint256 seed = orderSalt(collection, side, isCollectionBid, epoch);
 
@@ -124,28 +147,42 @@ contract BuildOrders is BaseDevScript, BaseSettlement, Config {
         // forge-lint: disable-next-line(unsafe-typecast)
         uint8 density = (uint8(seed) % 6) + 2;
 
-        uint256[] memory selected = MarketSim.selectTokens(
-            collection,
-            max,
-            density,
-            seed
-        );
+        return MarketSim.selectTokens(collection, max, density, seed);
+    }
 
-        uint256 selectedCount = selected.length;
-        OrderModel.Order[] memory orders = new OrderModel.Order[](
-            selectedCount
-        );
+    function _buildOrders(
+        OrderModel.Side side,
+        bool isCollectionBid
+    ) internal view returns (OrderModel.Order[] memory) {
+        uint256 total;
 
-        for (uint256 i = 0; i < selectedCount; i++) {
-            uint256 tokenId = selected[i];
+        // first pass: count
+        for (uint256 i = 0; i < collections.length; i++) {
+            total += collectionSelected[collections[i]].length;
+        }
 
-            orders[i] = makeOrder(
-                side,
-                isCollectionBid,
-                collection,
-                tokenId,
-                MarketSim.priceOf(collection, tokenId, seed)
-            );
+        OrderModel.Order[] memory orders = new OrderModel.Order[](total);
+
+        uint256 k;
+
+        // second pass: fill
+        for (uint256 i = 0; i < collections.length; i++) {
+            address collection = collections[i];
+            uint256[] storage tokens = collectionSelected[collection];
+
+            uint256 seed = orderSalt(collection, side, isCollectionBid, epoch);
+
+            for (uint256 j = 0; j < tokens.length; j++) {
+                uint256 tokenId = tokens[j];
+
+                orders[k++] = makeOrder(
+                    side,
+                    isCollectionBid,
+                    collection,
+                    tokenId,
+                    MarketSim.priceOf(collection, tokenId, seed)
+                );
+            }
         }
 
         return orders;
