@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "orderbook/libs/OrderActs.sol";
+import "orderbook/libs/OrderModel.sol";
 
 library OrderBuilder {
     function build(
-        OrderActs.Side side,
+        OrderModel.Side side,
         bool isCollectionBid,
         address collection,
         uint256 tokenId,
@@ -15,9 +15,9 @@ library OrderBuilder {
         uint64 start,
         uint64 end,
         uint256 nonce
-    ) internal pure returns (OrderActs.Order memory) {
+    ) internal pure returns (OrderModel.Order memory) {
         return
-            OrderActs.Order({
+            OrderModel.Order({
                 side: side,
                 isCollectionBid: isCollectionBid,
                 collection: collection,
@@ -32,12 +32,12 @@ library OrderBuilder {
     }
 
     /// validation for dev-setup scripts
-    function validate(OrderActs.Order memory o) internal {
+    function validate(OrderModel.Order memory o) internal pure {
         require(o.price > 0);
         require(o.end > o.start);
         require(o.actor != address(0));
         require(
-            !(o.side == OrderActs.Side.Ask && o.isCollectionBid),
+            !(o.side == OrderModel.Side.Ask && o.isCollectionBid),
             "ask cannot be collection bid"
         );
     }

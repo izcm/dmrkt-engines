@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.30;
 
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {OrderModel} from "orderbook/libs/OrderModel.sol";
 import {OrderHelper} from "test-helpers/OrderHelper.sol";
 
 contract OrderHelperTest is OrderHelper {
-    using OrderActs for OrderActs.Order;
+    using OrderModel for OrderModel.Order;
 
     address defaultCollection;
     address defaultCurrency;
@@ -22,17 +22,17 @@ contract OrderHelperTest is OrderHelper {
     function test_MakeAsk_SetsSideAsk() public {
         address actor = makeAddr("ask_actor");
 
-        OrderActs.Order memory order = makeAsk(actor);
+        OrderModel.Order memory order = makeAsk(actor);
 
-        assertEq(uint256(order.side), uint256(OrderActs.Side.Ask));
+        assertEq(uint256(order.side), uint256(OrderModel.Side.Ask));
         assertEq(order.actor, actor);
     }
 
     function test_MakeOrder_SetsCollectionBidFlag() public {
         address actor = makeAddr("bid_actor");
 
-        OrderActs.Order memory order = makeOrder(
-            OrderActs.Side.Bid,
+        OrderModel.Order memory order = makeOrder(
+            OrderModel.Side.Bid,
             true,
             actor
         );
@@ -45,8 +45,8 @@ contract OrderHelperTest is OrderHelper {
     function test_MakeOrder_UsesDefaults() public {
         address actor = makeAddr("default_actor");
 
-        OrderActs.Order memory order = makeOrder(
-            OrderActs.Side.Ask,
+        OrderModel.Order memory order = makeOrder(
+            OrderModel.Side.Ask,
             false,
             actor
         );
@@ -66,7 +66,7 @@ contract OrderHelperTest is OrderHelper {
         address customCollection = makeAddr("custom_collection");
         address customCurrency = makeAddr("custom_currency");
 
-        OrderActs.Order memory order = makeAsk(
+        OrderModel.Order memory order = makeAsk(
             customCollection,
             customCurrency,
             actor

@@ -5,53 +5,32 @@ pragma solidity ^0.8.30;
 import {Config} from "forge-std/Config.sol";
 import {console} from "forge-std/console.sol";
 
-// core
-import {OrderEngine} from "orderbook/OrderEngine.sol";
-
 // core libraries
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {OrderModel} from "orderbook/libs/OrderModel.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
 // periphery libraries
 import {MarketSim} from "periphery/MarketSim.sol";
-import {OrderBuilder} from "periphery/builders/OrderBuilder.sol";
 
 // scripts
 import {BaseDevScript} from "dev/BaseDevScript.s.sol";
+import {BaseSettlement} from "dev/BaseSettlement.s.sol";
 
 // interfaces
-import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
-
-interface DNFT {
-    function MAX_SUPPLY() external view returns (uint256);
-}
+import {DNFT} from "periphery/interfaces/DNFT.sol";
 
 struct SignedOrder {
-    OrderActs.Order order;
+    OrderModel.Order order;
     SigOps.Signature sig;
 }
 
-/*
-    For multiple NFT collections:
+contract BuildOrders is BaseDevScript, BaseSettlement, Config {
+    // ctx
+    uint256 chainId;
+    uint256 internal weekIdx = 3; // plz dont hardcode this forever
+    // 3 because MakeHistory has [0, 1, 2]
 
-    function run() external {
-        _loadConfig("deployments.toml", true);
-
-        uint256 chainId = block.chainid;
-        uint256[] memory participantPks = readKeys(chainId);
-
-        address[] memory collections = _loadCollections();
-
-        for (uint256 i = 0; i < collections.length; i++) {
-            _buildOrders(collections[i], participantPks);
-        }
-    }
-*/
-
-// TODO: SWITCH TO METHODS IN BaseSettlement.s.sol
-contract BuildOrders is BaseDevScript, Config {
-    mapping(address => uint256) internal ownerPk; // dev-only private keys (never do this in a production script)
-    mapping(address => uint256) internal nonceOf; // todo: remove this and use keccak nonce instead
+    address[] internal collections;
 
     function run() external {
         // --------------------------------
@@ -61,57 +40,44 @@ contract BuildOrders is BaseDevScript, Config {
 
         logSection("CONFIG");
 
-        uint256 chainId = block.chainid;
-
+        chainId = block.chainid;
         console.log("ChainId: %s", chainId);
 
         // currencies
         address weth = config.get("weth").toAddress();
 
         // deployed contracts
-        address dNft = config.get("dmrktgremlin").toAddress();
-        address verifyingContract = config
-            .get("verifying_contract")
+        collections.push(config.get("dmrktgremlin").toAddress()); // TODO: will be more collections later
+
+        address settlementContract = config
+            .get("settlement_contract")
             .toAddress();
 
-        logAddress("DNFT    ", dNft);
-        logAddress("VERIFIER", verifyingContract);
+        logAddress("SETTLER ", settlementContract);
+
+        _initBaseSettlement(settlementContract, weth);
+
+        loadParticipants();
 
         // --------------------------------
         // PHASE 1: MAKE ORDERS
         // --------------------------------
         logSection("MAKE ORDERS: ASK");
 
-        OrderActs.Order[] memory orders = _makeOrders(address(dNft), weth);
+        OrderModel.Order[] memory orders = _collectAsks();
         uint256 orderCount = orders.length;
-
-        // --- PKs for signing ---
-        uint256[] memory participantPks = readKeys(chainId);
-        uint256 participantCount = participantPks.length;
-
-        for (uint256 i = 0; i < participantCount; i++) {
-            uint256 pk = participantPks[i];
-
-            address addr = addrOf(pk);
-            ownerPk[addr] = pk;
-        }
-
-        bytes32 domainSeparator = OrderEngine(verifyingContract)
-            .DOMAIN_SEPARATOR();
 
         SignedOrder[] memory signed = new SignedOrder[](orderCount);
 
-        for (uint256 i = 0; i < orderCount; i++) {
-            OrderActs.Order memory order = orders[i];
+        // --- PKs for signing ---
 
-            uint256 pk = ownerPk[order.actor];
+        for (uint256 i = 0; i < orderCount; i++) {
+            OrderModel.Order memory order = orders[i];
+
+            uint256 pk = pkOf(order.actor);
             require(pk != 0, "NO PK FOR ACTOR");
 
-            (SigOps.Signature memory sig) = signOrder(
-                order,
-                pk,
-                domainSeparator
-            );
+            (SigOps.Signature memory sig) = signOrder(order, pk);
 
             signed[i] = SignedOrder({order: order, sig: sig});
         }
@@ -127,90 +93,75 @@ contract BuildOrders is BaseDevScript, Config {
             "/orders-raw.json"
         );
 
-        _persistSignedOrders(
-            signed,
-            path,
-            chainId,
-            verifyingContract,
-            domainSeparator
-        );
+        _persistSignedOrders(signed, path, settlementContract);
 
         logSeparator();
         console.log("ORDERS SAVED TO: %s", path);
         logSeparator();
     }
 
-    function _makeOrders(
-        // todo: switch to base settlement
-        address collection,
-        address currency
-    ) internal returns (OrderActs.Order[] memory) {
-        IERC721 token = IERC721(collection);
+    function _collectAsks() internal view returns (OrderModel.Order[] memory) {
+        logSection("COLLECT ORDERS - ASK");
+
+        OrderModel.Side side = OrderModel.Side.Ask;
+        bool isCollectionBid = false;
+
+        return _collect(side, isCollectionBid);
+    }
+
+    // will fix this to make sense after stack too deep is cleared...
+    function _collect(
+        OrderModel.Side side,
+        bool isCollectionBid
+    ) internal view returns (OrderModel.Order[] memory) {
+        address collection = collections[0]; // TODO: FIX
+        uint256 max = DNFT(collection).MAX_SUPPLY();
+        uint256 epoch = 0;
+
+        uint256 seed = orderSalt(collection, side, isCollectionBid, epoch);
+
+        // Safe: uint8(seed) % 6 ∈ [0..5], +2 ⇒ [2..7]
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint8 density = (uint8(seed) % 6) + 2;
 
         uint256[] memory selected = MarketSim.selectTokens(
             collection,
-            DNFT(collection).MAX_SUPPLY() / 2,
-            3,
-            0 // seed
+            max,
+            density,
+            seed
         );
 
         uint256 selectedCount = selected.length;
-        OrderActs.Order[] memory orders = new OrderActs.Order[](selectedCount);
+        OrderModel.Order[] memory orders = new OrderModel.Order[](
+            selectedCount
+        );
 
         for (uint256 i = 0; i < selectedCount; i++) {
             uint256 tokenId = selected[i];
-            address owner = token.ownerOf(tokenId);
-            uint256 price = MarketSim.priceOf(collection, tokenId, 0);
-            uint256 nonce = ++nonceOf[owner];
 
-            orders[i] = OrderBuilder.build(
-                OrderActs.Side.Ask,
-                false,
+            orders[i] = makeOrder(
+                side,
+                isCollectionBid,
                 collection,
                 tokenId,
-                currency,
-                price,
-                owner,
-                uint64(block.timestamp),
-                uint64(block.timestamp + 7 days),
-                nonce
+                MarketSim.priceOf(collection, tokenId, seed)
             );
         }
 
         return orders;
     }
 
-    function signOrder(
-        // todo: switch to base settlement
-        OrderActs.Order memory order,
-        uint256 actorPrivateKey,
-        bytes32 domainSeparator
-    ) internal pure returns (SigOps.Signature memory) {
-        bytes32 digest = keccak256(
-            abi.encodePacked("\x19\x01", domainSeparator, OrderActs.hash(order))
-        );
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(actorPrivateKey, digest);
-
-        SigOps.Signature memory sig = SigOps.Signature({v: v, r: r, s: s});
-
-        return sig;
-    }
-
     function _persistSignedOrders(
         SignedOrder[] memory signedOrders,
         string memory path,
-        uint256 chainId,
-        address verifyingContract,
-        bytes32 domainSeparator
+        address settlementContract
     ) internal {
         uint256 signedOrderCount = signedOrders.length;
         string memory root = "root";
 
         // metadata
         vm.serializeUint(root, "chainId", chainId);
-        vm.serializeAddress(root, "verifyingContract", verifyingContract);
-        vm.serializeBytes32(root, "domainSeparator", domainSeparator);
+        vm.serializeAddress(root, "settlementContract", settlementContract);
 
         // signedOrders array
         string[] memory entries = new string[](signedOrderCount);
@@ -255,7 +206,7 @@ contract BuildOrders is BaseDevScript, Config {
     }
 
     function _serializeOrder(
-        OrderActs.Order memory o,
+        OrderModel.Order memory o,
         string memory objKey
     ) internal returns (string memory) {
         string memory key = objKey;

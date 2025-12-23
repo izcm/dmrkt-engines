@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.30;
 
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {OrderModel} from "orderbook/libs/OrderModel.sol";
 import {SettlementRoles} from "orderbook/libs/SettlementRoles.sol";
 import {OrderHelper} from "test-helpers/OrderHelper.sol";
 
@@ -33,14 +33,14 @@ contract SettlementRolesTest is OrderHelper {
     //////////////////////////////////////////////////////////////*/
 
     function test_Resolve_Ask_ReturnsCorrectRoles() public {
-        OrderActs.Order memory order = makeOrder(
-            OrderActs.Side.Ask,
+        OrderModel.Order memory order = makeOrder(
+            OrderModel.Side.Ask,
             false,
             orderActor
         );
 
         // ensure fill tokenId is ignored for asks
-        OrderActs.Fill memory fill = OrderActs.Fill({
+        OrderModel.Fill memory fill = OrderModel.Fill({
             tokenId: 999,
             actor: fillActor
         });
@@ -54,13 +54,13 @@ contract SettlementRolesTest is OrderHelper {
     }
 
     function test_Resolve_Bid_SpecificToken_ReturnsCorrectRoles() public {
-        OrderActs.Order memory order = makeOrder(
-            OrderActs.Side.Bid,
+        OrderModel.Order memory order = makeOrder(
+            OrderModel.Side.Bid,
             false,
             orderActor
         );
 
-        OrderActs.Fill memory fill = OrderActs.Fill({
+        OrderModel.Fill memory fill = OrderModel.Fill({
             tokenId: 888,
             actor: fillActor
         });
@@ -74,15 +74,15 @@ contract SettlementRolesTest is OrderHelper {
     }
 
     function test_Resolve_Bid_CollectionBid_UsesFillTokenId() public {
-        OrderActs.Order memory order = makeOrder(
-            OrderActs.Side.Bid,
+        OrderModel.Order memory order = makeOrder(
+            OrderModel.Side.Bid,
             true,
             orderActor
         );
 
         uint256 collectionTokenId = 777;
 
-        OrderActs.Fill memory fill = OrderActs.Fill({
+        OrderModel.Fill memory fill = OrderModel.Fill({
             tokenId: collectionTokenId,
             actor: fillActor
         });
@@ -100,8 +100,8 @@ contract SettlementRolesTest is OrderHelper {
     //////////////////////////////////////////////////////////////*/
 
     function test_Resolve_Order_InvalidSideReverts() public {
-        OrderActs.Order memory order = OrderActs.Order({
-            side: OrderActs.Side._COUNT, // invalid on purpose
+        OrderModel.Order memory order = OrderModel.Order({
+            side: OrderModel.Side._COUNT, // invalid on purpose
             isCollectionBid: false,
             collection: address(0),
             tokenId: 1,
@@ -113,7 +113,7 @@ contract SettlementRolesTest is OrderHelper {
             nonce: 0
         });
 
-        OrderActs.Fill memory fill = OrderActs.Fill({
+        OrderModel.Fill memory fill = OrderModel.Fill({
             tokenId: 1,
             actor: fillActor
         });
@@ -124,8 +124,8 @@ contract SettlementRolesTest is OrderHelper {
 
     // generates CALL opCode
     function _resolveExternal(
-        OrderActs.Fill memory f,
-        OrderActs.Order memory o
+        OrderModel.Fill memory f,
+        OrderModel.Order memory o
     ) external pure {
         SettlementRoles.resolve(f, o);
     }

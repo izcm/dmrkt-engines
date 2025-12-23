@@ -46,7 +46,7 @@ contract DeployCore is BaseDevScript, Config {
         // ---  write deployed addrs to .toml ---
 
         // marketplace logic
-        config.set("verifying_contract", address(orderEngine)); // for our order builder
+        config.set("settlement_contract", address(orderEngine)); // for our order builder
         config.set("marketplace", address(orderEngine)); // nft bootstrap
 
         // nft contracts

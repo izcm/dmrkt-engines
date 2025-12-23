@@ -38,7 +38,7 @@ These contracts / libraries are deployed on-chain and are covered by exhaustive 
 
 - `contracts/orderbook/`
   - `OrderEngine.sol`
-  - `libs/OrderActs.sol`
+  - `libs/OrderModel.sol`
   - `libs/SignatureOps.sol`
   - `libs/SettlementRoles.sol`
 

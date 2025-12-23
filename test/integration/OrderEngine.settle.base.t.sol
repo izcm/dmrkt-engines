@@ -3,7 +3,7 @@ pragma solidity ^0.8.30;
 
 // local
 import {OrderEngine} from "orderbook/OrderEngine.sol";
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {OrderModel} from "orderbook/libs/OrderModel.sol";
 
 // helpers
 import {OrderHelper} from "test-helpers/OrderHelper.sol";
@@ -19,7 +19,7 @@ abstract contract OrderEngineSettleBase is
     OrderHelper,
     SettlementHelper
 {
-    using OrderActs for OrderActs.Order;
+    using OrderModel for OrderModel.Order;
 
     uint256 internal constant DEFAULT_ACTOR_COUNT = 10;
 

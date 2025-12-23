@@ -3,24 +3,31 @@ pragma solidity ^0.8.30;
 
 import {Script} from "forge-std/Script.sol";
 
-// core
-import {OrderEngine} from "orderbook/OrderEngine.sol";
-
 // core libs
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
-import {SettlementRoles} from "orderbook/libs/SettlementRoles.sol";
+import {OrderModel} from "orderbook/libs/OrderModel.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
-// periphery libraries
+// periphery libs
 import {OrderBuilder} from "periphery/builders/OrderBuilder.sol";
 
 // interfaces
 import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
 
-abstract contract BaseSettlement is Script {
-    using OrderActs for OrderActs.Order;
+// NOTE: this will be OrderEngine.s.sol
+// interface is implemented to future proof
+interface ISettlementEngine {
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
 
-    address private settlementContract; // futureproof name in case transfer auth decentralizes from order-settlementContract
+    function isUserOrderNonceInvalid(
+        address user,
+        uint256 nonce
+    ) external view returns (bool);
+}
+
+abstract contract BaseSettlement is Script {
+    using OrderModel for OrderModel.Order;
+
+    address private settlementContract;
     address private weth;
 
     function _initBaseSettlement(
@@ -32,14 +39,13 @@ abstract contract BaseSettlement is Script {
     }
 
     function makeOrder(
-        OrderActs.Side side,
+        OrderModel.Side side,
         bool isCollectionBid,
         address collection,
         uint256 tokenId,
         uint256 price
-    ) internal returns (OrderActs.Order memory) {
+    ) internal view returns (OrderModel.Order memory) {
         address owner = IERC721(collection).ownerOf(tokenId);
-        // uint256 price = MarketSim.priceOf(collection, tokenId, 0);
 
         uint256 j = 0;
 
@@ -48,7 +54,7 @@ abstract contract BaseSettlement is Script {
         );
 
         while (
-            OrderEngine(settlementContract).isUserOrderNonceInvalid(
+            ISettlementEngine(settlementContract).isUserOrderNonceInvalid(
                 owner,
                 _nonce(seed, j)
             )
@@ -72,16 +78,28 @@ abstract contract BaseSettlement is Script {
     }
 
     function signOrder(
-        OrderActs.Order memory order,
+        OrderModel.Order memory order,
         uint256 signerPk
     ) internal view returns (SigOps.Signature memory) {
         bytes32 digest = SigOps.digest712(
-            OrderEngine(settlementContract).DOMAIN_SEPARATOR(),
+            ISettlementEngine(settlementContract).DOMAIN_SEPARATOR(),
             order.hash()
         );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, digest);
         return SigOps.Signature(v, r, s);
+    }
+
+    function orderSalt(
+        address collection,
+        OrderModel.Side side,
+        bool isCollectionBid,
+        uint256 epoch
+    ) internal pure returns (uint256) {
+        return
+            uint256(
+                keccak256(abi.encode(collection, side, isCollectionBid, epoch))
+            );
     }
 
     // === PRIVATE FUNCTIONS ===

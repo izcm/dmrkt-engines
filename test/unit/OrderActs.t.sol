@@ -4,18 +4,18 @@ pragma solidity ^0.8.30;
 import {Test} from "forge-std/Test.sol";
 
 // local
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {OrderModel} from "orderbook/libs/OrderModel.sol";
 
-contract OrderActsTest is Test {
-    using OrderActs for OrderActs.Order;
+contract OrderModelTest is Test {
+    using OrderModel for OrderModel.Order;
 
     /*//////////////////////////////////////////////////////////////
                                 IsAsk
     //////////////////////////////////////////////////////////////*/
 
     function test_IsAsk_ReturnsTrue_ForAsk() public {
-        OrderActs.Order memory order = OrderActs.Order({
-            side: OrderActs.Side.Ask,
+        OrderModel.Order memory order = OrderModel.Order({
+            side: OrderModel.Side.Ask,
             isCollectionBid: false,
             collection: address(0),
             tokenId: 0,
@@ -31,8 +31,8 @@ contract OrderActsTest is Test {
     }
 
     function test_IsAsk_ReturnsFalse_ForBid() public {
-        OrderActs.Order memory order = OrderActs.Order({
-            side: OrderActs.Side.Bid,
+        OrderModel.Order memory order = OrderModel.Order({
+            side: OrderModel.Side.Bid,
             isCollectionBid: false,
             collection: address(0),
             tokenId: 0,
@@ -52,8 +52,8 @@ contract OrderActsTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function test_IsBid_ReturnsTrue_ForBid() public {
-        OrderActs.Order memory order = OrderActs.Order({
-            side: OrderActs.Side.Bid,
+        OrderModel.Order memory order = OrderModel.Order({
+            side: OrderModel.Side.Bid,
             isCollectionBid: false,
             collection: address(0),
             tokenId: 0,
@@ -69,8 +69,8 @@ contract OrderActsTest is Test {
     }
 
     function test_IsBid_ReturnsFalse_ForAsk() public {
-        OrderActs.Order memory order = OrderActs.Order({
-            side: OrderActs.Side.Ask,
+        OrderModel.Order memory order = OrderModel.Order({
+            side: OrderModel.Side.Ask,
             isCollectionBid: false,
             collection: address(0),
             tokenId: 0,

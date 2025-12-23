@@ -20,8 +20,7 @@ contract Approve is BaseDevScript, Config {
 
         logSection("LOAD CONFIG");
 
-        uint256 chainId = block.chainid;
-        console.log("ChainId: %s", chainId);
+        console.log("ChainId: %s", block.chainid);
 
         address weth = config.get("weth").toAddress();
         address dNft = config.get("dmrktgremlin").toAddress();
@@ -31,7 +30,7 @@ contract Approve is BaseDevScript, Config {
         logAddress("MARKETPLACE", marketplace);
 
         // --- PKs for broadcasting ---
-        uint256[] memory participantPks = readKeys(chainId);
+        uint256[] memory participantPks = readKeys();
         uint256 participantCount = participantPks.length;
 
         // --------------------------------

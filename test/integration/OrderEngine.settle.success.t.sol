@@ -9,7 +9,7 @@ import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
 import {OrderEngineSettleBase} from "./OrderEngine.settle.base.t.sol";
 
 // core libs
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {OrderModel} from "orderbook/libs/OrderModel.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
 // periphery libs
@@ -22,7 +22,7 @@ struct Balances {
 }
 
 contract OrderEngineSettleSuccessTest is OrderEngineSettleBase {
-    using OrderActs for OrderActs.Order;
+    using OrderModel for OrderModel.Order;
 
     event Settlement(
         bytes32 indexed orderHash,
@@ -35,12 +35,12 @@ contract OrderEngineSettleSuccessTest is OrderEngineSettleBase {
     );
 
     function test_Settle_Ask_Succeeds() public {
-        _assertSettleSucceeds(OrderActs.Side.Ask, false, someActors("ask"));
+        _assertSettleSucceeds(OrderModel.Side.Ask, false, someActors("ask"));
     }
 
     function test_Settle_Bid_SpecificToken_Succeeds() public {
         _assertSettleSucceeds(
-            OrderActs.Side.Bid,
+            OrderModel.Side.Bid,
             false,
             someActors("bid_specific")
         );
@@ -48,21 +48,21 @@ contract OrderEngineSettleSuccessTest is OrderEngineSettleBase {
 
     function test_Settle_Bid_CollectionBid_Succeeds() public {
         _assertSettleSucceeds(
-            OrderActs.Side.Bid,
+            OrderModel.Side.Bid,
             true,
             someActors("bid_collection")
         );
     }
 
     function _assertSettleSucceeds(
-        OrderActs.Side side,
+        OrderModel.Side side,
         bool isCollectionBid,
         Actors memory actors
     ) internal {
         uint256 signerPk = pkOf(actors.order);
 
         // defaults to mockEERC721 + WETH
-        OrderActs.Order memory order = makeOrder(
+        OrderModel.Order memory order = makeOrder(
             side,
             isCollectionBid,
             actors.order
@@ -72,7 +72,7 @@ contract OrderEngineSettleSuccessTest is OrderEngineSettleBase {
 
         uint256 tokenIdFill = order.isBid() ? order.tokenId : 0;
 
-        OrderActs.Fill memory fill = makeFill(actors.fill, tokenIdFill);
+        OrderModel.Fill memory fill = makeFill(actors.fill, tokenIdFill);
 
         legitimizeSettlement(fill, order);
 

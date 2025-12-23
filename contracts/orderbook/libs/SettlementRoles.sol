@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import {OrderActs} from "./OrderActs.sol";
+import {OrderModel} from "./OrderModel.sol";
 
 library SettlementRoles {
-    using OrderActs for OrderActs.Order;
+    using OrderModel for OrderModel.Order;
 
     error InvalidOrderSide();
 
     function resolve(
-        OrderActs.Fill memory f,
-        OrderActs.Order memory o
+        OrderModel.Fill memory f,
+        OrderModel.Order memory o
     )
         internal
         pure

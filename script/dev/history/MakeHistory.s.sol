@@ -5,19 +5,18 @@ import {Config} from "forge-std/Config.sol";
 import {console} from "forge-std/console.sol";
 
 // core libraries
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
-import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
+import {OrderModel} from "orderbook/libs/OrderModel.sol";
 
 // periphery libraries
-import {OrderBuilder} from "periphery/builders/OrderBuilder.sol";
 import {MarketSim} from "periphery/MarketSim.sol";
 
 // scripts
 import {BaseDevScript} from "dev/BaseDevScript.s.sol";
 import {BaseSettlement} from "dev/BaseSettlement.s.sol";
 
+// DNFT => DmrktNFT (all implements these functions)
 interface DNFT {
-    function MAX_SUPPLY() external view returns (uint256); // out periphery tokens all implement this
+    function MAX_SUPPLY() external view returns (uint256); // periphery tokens all implement this
 }
 
 contract MakeHistory is BaseDevScript, BaseSettlement, Config {
@@ -28,6 +27,25 @@ contract MakeHistory is BaseDevScript, BaseSettlement, Config {
     address[] internal collections;
 
     mapping(address => uint256[]) internal collectionSelected;
+
+    // === ENTRYPOINTS ===
+
+    function runWeek(uint256 _weekIdx) external {
+        weekIdx = _weekIdx;
+        _bootstrap();
+        _jumpToWeek();
+
+        _collectAsks();
+        _collectBids();
+        _collectCollectionBids();
+    }
+
+    function finalize() external {
+        _bootstrap();
+        _jumpToNow();
+    }
+
+    // === SETUP / ENVIRONMENT ===
 
     function _bootstrap() internal {
         // --------------------------------
@@ -57,25 +75,12 @@ contract MakeHistory is BaseDevScript, BaseSettlement, Config {
         // collections.push(config.get("whatever_next").toAddress());
     }
 
-    function runWeek(uint256 _weekIdx) external {
-        weekIdx = _weekIdx;
-        _bootstrap();
-        _jumpToWeek();
-
-        _collectAsks();
-        _collectBids();
-        _collectCollectionBids();
-    }
-
-    function finalize() external {
-        _bootstrap();
-        _jumpToNow();
-    }
+    // === PIPELINE ===
 
     function _collectAsks() internal {
         logSection("COLLECT ORDERS - ASK");
 
-        OrderActs.Side side = OrderActs.Side.Ask;
+        OrderModel.Side side = OrderModel.Side.Ask;
         bool isCollectionBid = false;
 
         _collect(side, isCollectionBid);
@@ -84,7 +89,7 @@ contract MakeHistory is BaseDevScript, BaseSettlement, Config {
     function _collectBids() internal {
         logSection("COLLECT ORDERS - BID");
 
-        OrderActs.Side side = OrderActs.Side.Bid;
+        OrderModel.Side side = OrderModel.Side.Bid;
         bool isCollectionBid = false;
 
         _collect(side, isCollectionBid);
@@ -93,20 +98,28 @@ contract MakeHistory is BaseDevScript, BaseSettlement, Config {
     function _collectCollectionBids() internal {
         logSection("COLLECT ORDERS - COLLECTION BIDS");
 
-        OrderActs.Side side = OrderActs.Side.Bid;
+        OrderModel.Side side = OrderModel.Side.Bid;
         bool isCollectionBid = true;
 
         _collect(side, isCollectionBid);
     }
 
-    function _collect(OrderActs.Side side, bool isCollectionBid) internal {
+    function _collect(OrderModel.Side side, bool isCollectionBid) internal {
         for (uint256 i = 0; i < collections.length; i++) {
             address collection = collections[i];
 
-            uint256 seed = _seed(collection, side, isCollectionBid);
+            uint256 seed = orderSalt(
+                collection,
+                side,
+                isCollectionBid,
+                weekIdx
+            );
 
             uint256 limit = DNFT(collection).MAX_SUPPLY();
-            uint8 density = (uint8(seed) % 6) + 2; // [2..7]
+
+            // Safe: uint8(seed) % 6 ∈ [0..5], +2 ⇒ [2..7]
+            // forge-lint: disable-next-line(unsafe-typecast)
+            uint8 density = (uint8(seed) % 6) + 2;
 
             uint256[] memory tokens = MarketSim.selectTokens(
                 collection,
@@ -128,22 +141,9 @@ contract MakeHistory is BaseDevScript, BaseSettlement, Config {
         }
     }
 
-    function _seed(
-        address collection,
-        OrderActs.Side side,
-        bool isCollectionBid
-    ) internal returns (uint256) {
-        return
-            uint256(
-                keccak256(
-                    abi.encode(collection, side, isCollectionBid, weekIdx)
-                )
-            );
-    }
+    // === UTILITIES ===
 
-    // --------------------------------
-    // INTERNAL TIME HELPERS
-    // --------------------------------
+    // === TIME HELPERS ===
 
     function _jumpToWeek() internal {
         // weekIndex = 0,1,2,3

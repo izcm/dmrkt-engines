@@ -5,12 +5,27 @@ import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 
 abstract contract BaseDevScript is Script {
-    function readKeys(
-        uint256 chainId
-    ) internal view returns (uint256[] memory) {
+    mapping(address => uint256) private _ownerPk;
+    address[] private _participants;
+
+    // Call this if the script needs to have easy access to pk => addr
+    function loadParticipants() internal {
+        uint256[] memory pks = readKeys();
+
+        for (uint256 i = 0; i < pks.length; i++) {
+            uint256 pk = pks[i];
+            address addr = addrOf(pk);
+
+            _ownerPk[addr] = pk;
+            _participants.push(addr);
+        }
+    }
+
+    // If a script only needs private keys use this, no need to call loadParticipants
+    function readKeys() internal view returns (uint256[] memory) {
         string memory path = string.concat(
             "./data/",
-            vm.toString(chainId),
+            vm.toString(block.chainid),
             "/keys.json"
         );
 
@@ -20,18 +35,16 @@ abstract contract BaseDevScript is Script {
         return keys;
     }
 
-    function addrOf(uint256 pk) internal pure returns (address) {
-        return vm.addr(pk);
+    function participants() internal view returns (address[] memory) {
+        return _participants;
     }
 
-    function countUntilZero(
-        uint256[] memory arr
-    ) internal pure returns (uint256) {
-        uint256 i = 0;
-        while (i < arr.length && arr[i] != 0) {
-            i++;
-        }
-        return i;
+    function pkOf(address actor) internal view returns (uint256) {
+        return _ownerPk[actor];
+    }
+
+    function addrOf(uint256 pk) internal pure returns (address) {
+        return vm.addr(pk);
     }
 
     // --- LOG HELPERS ---

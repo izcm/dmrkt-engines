@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-library OrderActs {
+library OrderModel {
     enum Side {
         Ask, // 0
         Bid, // 1

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "orderbook/libs/OrderActs.sol";
+import "orderbook/libs/OrderModel.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
 contract MockVerifyingContract {
-    using OrderActs for OrderActs.Order;
+    using OrderModel for OrderModel.Order;
     using SigOps for SigOps.Signature;
 
     bytes32 public immutable DOMAIN_SEPARATOR;
@@ -15,7 +15,7 @@ contract MockVerifyingContract {
     }
 
     function verify(
-        OrderActs.Order calldata order,
+        OrderModel.Order calldata order,
         SigOps.Signature calldata sig
     ) external view returns (bool) {
         (uint8 v, bytes32 r, bytes32 s) = sig.vrs();

@@ -19,9 +19,7 @@ contract BootstrapAccounts is BaseDevScript, Config {
 
         logSection("LOAD CONFIG");
 
-        uint256 chainId = block.chainid;
-
-        console.log("ChainId: %s", chainId);
+        console.log("ChainId: %s", block.chainid);
 
         // read deployments.toml
         address funder = config.get("funder").toAddress();
@@ -51,7 +49,7 @@ contract BootstrapAccounts is BaseDevScript, Config {
         // 2. write output of `anvil` as json (probably contains the dev account pks(?))
         // 3. read these instead of keys.json
         // would be nice for overall realistic dev env
-        uint256[] memory participantPks = readKeys(chainId);
+        uint256[] memory participantPks = readKeys();
         uint256 participantCount = participantPks.length;
 
         // amount to fund each account

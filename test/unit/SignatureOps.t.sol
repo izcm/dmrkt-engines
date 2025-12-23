@@ -2,7 +2,7 @@
 pragma solidity ^0.8.30;
 
 // local
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {OrderModel} from "orderbook/libs/OrderModel.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 import {OrderHelper} from "test-helpers/OrderHelper.sol";
 
@@ -41,7 +41,7 @@ contract SignatureOpsTest is OrderHelper {
 
     function test_Verify_ValidSignature_Succeeds() public {
         (
-            OrderActs.Order memory order,
+            OrderModel.Order memory order,
             SigOps.Signature memory sig
         ) = makeSignedAsk(signer, signerPk);
 
@@ -55,7 +55,7 @@ contract SignatureOpsTest is OrderHelper {
 
     function test_Verify_MutatedOrder_Reverts() public {
         (
-            OrderActs.Order memory order,
+            OrderModel.Order memory order,
             SigOps.Signature memory sig
         ) = makeSignedAsk(signer, signerPk);
 
@@ -68,7 +68,7 @@ contract SignatureOpsTest is OrderHelper {
 
     function test_Verify_CorruptedS_Reverts() public {
         (
-            OrderActs.Order memory order,
+            OrderModel.Order memory order,
             SigOps.Signature memory sig
         ) = makeSignedAsk(signer, signerPk);
 
@@ -86,7 +86,7 @@ contract SignatureOpsTest is OrderHelper {
 
     function test_Verify_CorruptedV_Reverts() public {
         (
-            OrderActs.Order memory order,
+            OrderModel.Order memory order,
             SigOps.Signature memory sig
         ) = makeSignedAsk(signer, signerPk);
 
@@ -101,7 +101,7 @@ contract SignatureOpsTest is OrderHelper {
 
     function test_Verify_WrongSigner_Reverts() public {
         (
-            OrderActs.Order memory order,
+            OrderModel.Order memory order,
             SigOps.Signature memory sig
         ) = makeSignedAsk(signer, signerPk);
 

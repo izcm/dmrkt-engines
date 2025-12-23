@@ -3,7 +3,7 @@ pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
 
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {OrderModel} from "orderbook/libs/OrderModel.sol";
 
 // interfaces
 import {IERC20, SafeERC20} from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
@@ -16,7 +16,7 @@ import {SettlementRoles} from "orderbook/libs/SettlementRoles.sol";
 
 abstract contract SettlementHelper is Test {
     using SafeERC20 for IERC20; // mirrors actual engine
-    using OrderActs for OrderActs.Order;
+    using OrderModel for OrderModel.Order;
 
     // default tokenId for fill
     uint256 private constant DEFAULT_TOKEN_ID = 0;
@@ -64,8 +64,8 @@ abstract contract SettlementHelper is Test {
     }
 
     function legitimizeSettlement(
-        OrderActs.Fill memory f,
-        OrderActs.Order memory o
+        OrderModel.Fill memory f,
+        OrderModel.Order memory o
     ) internal {
         address collection = o.collection;
         uint256 price = o.price;
@@ -90,15 +90,15 @@ abstract contract SettlementHelper is Test {
 
     function makeFill(
         address actor
-    ) internal pure returns (OrderActs.Fill memory fill) {
-        return OrderActs.Fill({actor: actor, tokenId: DEFAULT_TOKEN_ID});
+    ) internal pure returns (OrderModel.Fill memory fill) {
+        return OrderModel.Fill({actor: actor, tokenId: DEFAULT_TOKEN_ID});
     }
 
     function makeFill(
         address actor,
         uint256 tokenId
-    ) internal pure returns (OrderActs.Fill memory fill) {
-        return OrderActs.Fill({actor: actor, tokenId: tokenId});
+    ) internal pure returns (OrderModel.Fill memory fill) {
+        return OrderModel.Fill({actor: actor, tokenId: tokenId});
     }
 
     // === PRIVATE FUNCTIONS ===

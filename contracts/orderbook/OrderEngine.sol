@@ -8,7 +8,7 @@ import {IERC20, SafeERC20} from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/utils/ReentrancyGuard.sol";
 
 // local
-import {OrderActs} from "./libs/OrderActs.sol";
+import {OrderModel} from "./libs/OrderModel.sol";
 import {SettlementRoles} from "./libs/SettlementRoles.sol";
 import {SignatureOps as SigOps} from "./libs/SignatureOps.sol";
 
@@ -16,7 +16,7 @@ bytes4 constant INTERFACE_ID_ERC721 = 0x80ac58cd;
 
 contract OrderEngine is ReentrancyGuard {
     using SafeERC20 for IERC20;
-    using OrderActs for OrderActs.Order;
+    using OrderModel for OrderModel.Order;
     using SigOps for SigOps.Signature;
 
     // === ERRORS ===
@@ -78,8 +78,8 @@ contract OrderEngine is ReentrancyGuard {
      * @notice Matches a `Fill` request to an existing `Order`
      */
     function settle(
-        OrderActs.Fill calldata fill,
-        OrderActs.Order calldata order,
+        OrderModel.Fill calldata fill,
+        OrderModel.Order calldata order,
         SigOps.Signature calldata sig
     ) external payable nonReentrant {
         // Fill request actor must be msg.sender
@@ -178,7 +178,7 @@ contract OrderEngine is ReentrancyGuard {
      * @notice Validates order.
      */
     function _validateOrder(
-        OrderActs.Order calldata order,
+        OrderModel.Order calldata order,
         bytes32 orderHash,
         uint8 v,
         bytes32 r,

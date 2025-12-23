@@ -4,11 +4,11 @@ pragma solidity ^0.8.30;
 import {Test} from "forge-std/Test.sol";
 
 // core libraries
-import {OrderActs} from "orderbook/libs/OrderActs.sol";
+import {OrderModel} from "orderbook/libs/OrderModel.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
 abstract contract OrderHelper is Test {
-    using OrderActs for OrderActs.Order;
+    using OrderModel for OrderModel.Order;
 
     uint256 private constant DEFAULT_PRICE = 1 ether;
     uint256 private constant DEFAULT_TOKEN_ID = 1;
@@ -32,18 +32,18 @@ abstract contract OrderHelper is Test {
     // === ASK ===
     function makeAsk(
         address actor
-    ) internal view returns (OrderActs.Order memory order) {
-        return makeOrder(OrderActs.Side.Ask, false, actor);
+    ) internal view returns (OrderModel.Order memory order) {
+        return makeOrder(OrderModel.Side.Ask, false, actor);
     }
 
     function makeAsk(
         address collection,
         address currency,
         address actor
-    ) internal view returns (OrderActs.Order memory) {
+    ) internal view returns (OrderModel.Order memory) {
         return
             _order(
-                OrderActs.Side.Ask,
+                OrderModel.Side.Ask,
                 false,
                 collection,
                 currency,
@@ -56,10 +56,10 @@ abstract contract OrderHelper is Test {
     // === BID / ASK ===
 
     function makeOrder(
-        OrderActs.Side side,
+        OrderModel.Side side,
         bool isCollectionBid,
         address actor
-    ) internal view returns (OrderActs.Order memory) {
+    ) internal view returns (OrderModel.Order memory) {
         return
             _order(
                 side,
@@ -73,16 +73,16 @@ abstract contract OrderHelper is Test {
     }
 
     function _order(
-        OrderActs.Side side,
+        OrderModel.Side side,
         bool isCollectionBid,
         address collection,
         address currency,
         uint256 price,
         address actor,
         uint256 nonce
-    ) internal view returns (OrderActs.Order memory) {
+    ) internal view returns (OrderModel.Order memory) {
         return
-            OrderActs.Order({
+            OrderModel.Order({
                 side: side,
                 isCollectionBid: isCollectionBid,
                 collection: collection,
@@ -104,14 +104,14 @@ abstract contract OrderHelper is Test {
     )
         internal
         view
-        returns (OrderActs.Order memory order, SigOps.Signature memory sig)
+        returns (OrderModel.Order memory order, SigOps.Signature memory sig)
     {
         order = makeAsk(signer);
         (, sig) = signOrder(order, signerPk);
     }
 
     function signOrder(
-        OrderActs.Order memory order,
+        OrderModel.Order memory order,
         uint256 signerPk
     ) internal view returns (bytes32 digest, SigOps.Signature memory sig) {
         digest = SigOps.digest712(domainSeparator, order.hash());
