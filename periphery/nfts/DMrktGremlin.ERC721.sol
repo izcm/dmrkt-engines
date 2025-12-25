@@ -19,6 +19,10 @@ contract DMrktGremlin is DNFT, ERC721 {
         _safeMint(to, _nextTokenId++);
     }
 
+    function totalSupply() external view returns (uint256) {
+        return _nextTokenId;
+    }
+
     function tokenURI(
         uint256 tokenId
     ) public view override returns (string memory) {

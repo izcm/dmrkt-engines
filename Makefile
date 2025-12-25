@@ -1,22 +1,31 @@
 # ───────────────────────────────────────────────
-#   Marketplace Engines Makefile
+#   Marketplace Engines — DEV PIPELINE
 # ───────────────────────────────────────────────
 
-# Variables
 include .env
 
-# paths
-DEPLOY_ORDER_ENGINE = script/DeployOrderEngine.s.sol
-PATH_DEV = script/dev
+# ───────────────────────────────────────────────
+#   ROOTS
+# ───────────────────────────────────────────────
 
-PATH_BOOTSTRAP = $(PATH_DEV)/genesis/bootstrap
-PATH_HISTORY = $(PATH_DEV)/history
+SCRIPT_ROOT := script
+DEV_ROOT    := $(SCRIPT_ROOT)/dev
 
-PATH_ORDERS = $(PATH_DEV)/orders
-PATH_EXPORT = $(PATH_ORDERS)/export
+# dev subtrees
+DEV_BASE        := $(DEV_ROOT)
+DEV_SETUP       := $(DEV_ROOT)/genesis
+DEV_BOOTSTRAP   := $(DEV_SETUP)/bootstrap
+DEV_LOGIC       := $(DEV_ROOT)/logic
+DEV_STATE       := $(DEV_ROOT)/state
+DEV_STATE_OPEN  := $(DEV_STATE)/open
+DEV_STATE_DONE  := $(DEV_STATE)/settled
 
-WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
-RPC_URL = $(ANVIL_RPC_URL)
+# entrypoints
+DEPLOY_ORDER_ENGINE := $(SCRIPT_ROOT)/DeployOrderEngine.s.sol
+
+# chain
+RPC_URL := $(ANVIL_RPC_URL)
+WETH    := 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
 
 # ───────────────────────────────────────────────
 #   LOGGING / VERBOSITY
@@ -43,83 +52,84 @@ FORGE_COMMON_FLAGS = \
 	$(FORGE_SILENT)
 
 # ───────────────────────────────────────────────
-#   DEV — PRIMARY ENTRYPOINTS
+#   DEV — HIGH-LEVEL PIPELINES
 # ───────────────────────────────────────────────
-dev-start: dev-fork dev-bootstrap-accounts dev-deploy-core dev-bootstrap-nfts dev-approve
-	@echo "🚀 Dev environment ready"
 
-dev-export: dev-build-orders dev-sanitize-orders dev-export-orders
+dev-start: dev-fork pipeline-setup
 	@echo "🚀 Dev environment ready"
 
 dev-reset: kill-anvil dev-start
 	@echo "♻️ Dev reset complete"
 
-# ───────────────────────────────────────────────
-#   DEV ENV SETUP - ON CHAIN
-# ───────────────────────────────────────────────
+pipeline-setup: \
+	dev-bootstrap-accounts \
+	dev-deploy-core \
+	dev-bootstrap-nfts \
+	dev-approve
+	@echo "🧱 Setup pipeline complete"
 
-# ❗ TODO: MAKE THIS WHOLE PROCESS DOCKERIZED
-# https://getfoundry.sh/guides/foundry-in-docker/
+pipeline-state: dev-open dev-history
+	@echo "🎭 State pipelines complete"
+
+# ───────────────────────────────────────────────
+#   DEV — ENVIRONMENT BOOT
+# ───────────────────────────────────────────────
 
 dev-fork:
 	@echo "🧬 Starting anvil fork..."
-	@cd $(PATH_DEV) && bash start.sh
+	@cd $(DEV_ROOT) && bash start.sh
+
+# ───────────────────────────────────────────────
+#   DEV — SETUP / GENESIS
+# ───────────────────────────────────────────────
 
 dev-bootstrap-accounts:
 	@echo "💻 Bootstrapping dev accounts..."
-	forge script $(PATH_BOOTSTRAP)/BootstrapAccounts.s.sol \
+	forge script $(DEV_BOOTSTRAP)/BootstrapAccounts.s.sol \
 		$(FORGE_COMMON_FLAGS)
 
 dev-deploy-core:
 	@echo "🧾 Deploying core contracts..."
-	forge script $(PATH_DEV)/genesis/DeployCore.s.sol \
+	forge script $(DEV_SETUP)/DeployCore.s.sol \
 		$(FORGE_COMMON_FLAGS)
 
 dev-bootstrap-nfts:
 	@echo "🖼️ Bootstrapping NFTs..."
-	forge script $(PATH_BOOTSTRAP)/BootstrapNFTs.s.sol \
+	forge script $(DEV_BOOTSTRAP)/BootstrapNFTs.s.sol \
 		$(FORGE_COMMON_FLAGS)
 
 dev-approve:
 	@echo "✔ Executing approvals..."
-	forge script $(PATH_BOOTSTRAP)/Approve.s.sol \
+	forge script $(DEV_BOOTSTRAP)/Approve.s.sol \
+		$(FORGE_COMMON_FLAGS)
+
+# ───────────────────────────────────────────────
+#   DEV — STATE / SCENARIOS
+# ───────────────────────────────────────────────
+
+dev-open:
+	@echo "📬 Opening listings..."
+	forge script $(DEV_STATE_OPEN)/OpenListings.s.sol \
 		$(FORGE_COMMON_FLAGS)
 
 dev-history:
-	@echo "📊 Making history..."
-	forge script $(PATH_HISTORY)/SettleHistory.s.sol --sig "runWeek(uint256)" 1 \
-		--rpc-url $(RPC_URL) \
-		--broadcast \
-		--sender $(SENDER) \
-		--private-key $(PRIVATE_KEY) \
-
-dev-build-orders:
-	@echo "🔨 Building orders..."
-	forge script $(PATH_ORDERS)/OpenListings.s.sol \
+	@echo "📊 Settling historical orders..."
+	forge script $(DEV_STATE_DONE)/SettleHistory.s.sol \
+		--sig "runWeek(uint256)" 1 \
 		$(FORGE_COMMON_FLAGS)
-
-
-# ───────────────────────────────────────────────
-#   DEV ENV SETUP - OFF CHAIN ORDERS
-# ───────────────────────────────────────────────
-dev-sanitize-orders:
-	@echo "🧽 Sanitizing orders..."
-	node $(PATH_EXPORT)/sanitize-orders.js
-
-dev-export-orders: dev-sanitize-orders
-	@echo "📩 Exporting orders..."
-	node $(PATH_EXPORT)/export-orders.js
 
 # ───────────────────────────────────────────────
 #   RESET / PROCESS CONTROL
 # ───────────────────────────────────────────────
+
 kill-anvil:
 	@echo "💀 Killing anvil..."
 	pkill anvil 2>/dev/null || true
 
 # ───────────────────────────────────────────────
-#   CHAIN READ / WRITE HELPERS
+#   CHAIN READ HELPERS
 # ───────────────────────────────────────────────
+
 weth-balance:
 	@if [ -z "$(ADDR)" ]; then \
 		echo "❌ Missing ADDR. Usage: make weth-balance ADDR=0xYourAddress"; \
@@ -133,8 +143,9 @@ weth-balance:
 		--rpc-url $(RPC_URL) | cast from-wei
 
 # ───────────────────────────────────────────────
-#   ETC.
+#   MISC
 # ───────────────────────────────────────────────
+
 tree:
 	@if [ -z "$(DEPTH)" ]; then DEPTH=3; fi; \
 	tree -L $$DEPTH -I "out|lib|broadcast|cache|notes"

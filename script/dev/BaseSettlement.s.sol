@@ -13,8 +13,7 @@ import {OrderBuilder} from "periphery/builders/OrderBuilder.sol";
 // interfaces
 import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
 
-// NOTE: this will be OrderEngine.s.sol
-// interface is implemented to future proof
+// NOTE: interface is implemented to future proof
 interface ISettlementEngine {
     function DOMAIN_SEPARATOR() external view returns (bytes32);
 
