@@ -62,6 +62,39 @@ abstract contract OrderSampling is Script {
         }
     }
 
+    function buildOrders(
+        OrderModel.Side side,
+        bool isCollectionBid
+    ) internal view returns (OrderModel.Order[] memory) {
+        uint256 count = orderCount();
+
+        OrderModel.Order[] memory orders = new OrderModel.Order[](count);
+
+        uint256 k;
+
+        // second pass: fill
+        for (uint256 i = 0; i < collections.length; i++) {
+            address collection = collections[i];
+            uint256[] storage tokens = collectionSelected[collection];
+
+            uint256 seed = _orderSalt(collection, side, isCollectionBid, epoch);
+
+            for (uint256 j = 0; j < tokens.length; j++) {
+                uint256 tokenId = tokens[j];
+
+                orders[k++] = _makeOrder(
+                    side,
+                    isCollectionBid,
+                    collection,
+                    tokenId,
+                    MarketSim.priceOf(collection, tokenId, seed)
+                );
+            }
+        }
+
+        return orders;
+    }
+
     function _resetSelection() internal {
         for (uint256 i = 0; i < collections.length; i++) {
             delete collectionSelected[collections[i]];
@@ -102,39 +135,6 @@ abstract contract OrderSampling is Script {
         uint8 density = (uint8(seed) % 6) + 2;
 
         return MarketSim.selectTokens(collection, max, density, seed);
-    }
-
-    function buildOrders(
-        OrderModel.Side side,
-        bool isCollectionBid
-    ) internal view returns (OrderModel.Order[] memory) {
-        uint256 count = orderCount();
-
-        OrderModel.Order[] memory orders = new OrderModel.Order[](count);
-
-        uint256 k;
-
-        // second pass: fill
-        for (uint256 i = 0; i < collections.length; i++) {
-            address collection = collections[i];
-            uint256[] storage tokens = collectionSelected[collection];
-
-            uint256 seed = _orderSalt(collection, side, isCollectionBid, epoch);
-
-            for (uint256 j = 0; j < tokens.length; j++) {
-                uint256 tokenId = tokens[j];
-
-                orders[k++] = _makeOrder(
-                    side,
-                    isCollectionBid,
-                    collection,
-                    tokenId,
-                    MarketSim.priceOf(collection, tokenId, seed)
-                );
-            }
-        }
-
-        return orders;
     }
 
     function _makeOrder(

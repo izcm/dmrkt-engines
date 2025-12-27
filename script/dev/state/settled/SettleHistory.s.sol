@@ -50,8 +50,6 @@ contract SettleHistory is
     // === SETUP / ENVIRONMENT ===
 
     function _bootstrap() internal {
-        logSection("BOOTSTRAP");
-
         address settlementContract = readSettlementContract();
         address weth = readWeth();
 
@@ -61,7 +59,6 @@ contract SettleHistory is
             .DOMAIN_SEPARATOR();
 
         _initOrderSampling(weekIdx, collections, settlementContract, weth);
-        // _initSettlementContext(settlementContract, weth);
 
         _loadParticipants();
     }
