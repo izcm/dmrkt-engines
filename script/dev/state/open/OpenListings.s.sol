@@ -8,10 +8,8 @@ import {console} from "forge-std/console.sol";
 import {OrderModel} from "orderbook/libs/OrderModel.sol";
 import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 
-struct SignedOrder {
-    OrderModel.Order order;
-    SigOps.Signature sig;
-}
+// types
+import {SignedOrder} from "dev/state/Types.sol";
 
 contract OpenListings is Script {
     function persistSignedOrders(

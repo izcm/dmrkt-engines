@@ -1,25 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+import {Script} from "forge-std/Script.sol";
+
 // core libs
 import {OrderModel} from "orderbook/libs/OrderModel.sol";
 
 // periphery libs
 import {MarketSim} from "periphery/MarketSim.sol";
 
-// scripts
-import {SettlementContext} from "dev/logic/SettlementContext.s.sol";
-
 // interfaces
+import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
+import {ISettlementEngine} from "periphery/interfaces/ISettlementEngine.sol";
 import {DNFT} from "periphery/interfaces/DNFT.sol";
 
 // types
 import {SignedOrder, SampleMode} from "dev/state/Types.sol";
 
-abstract contract OrderSampling is SettlementContext {
-    uint256 private epoch; // used to set order.timestamps
-    uint256 private seedSalt; // lets child contracts influence seeds for selecting tokensIds
-
+abstract contract OrderSampling is Script {
     address[] internal collections;
 
     mapping(address => uint256[]) internal collectionSelected;
@@ -27,19 +25,19 @@ abstract contract OrderSampling is SettlementContext {
     address private weth;
     address private settlementContract;
 
+    uint256 epoch;
+
     // any child contract must call this method
     function _initOrderSampling(
         uint256 _epoch,
+        address[] memory _collections,
         address _settlementContract,
-        address _weth,
-        uint256 _seedSalt,
-        address[] memory _collections
+        address _weth
     ) internal {
         epoch = _epoch;
+        collections = _collections;
         settlementContract = _settlementContract;
         weth = _weth;
-        seedSalt = _seedSalt;
-        collections = _collections;
     }
 
     function orderCount() internal view returns (uint256) {
@@ -62,35 +60,6 @@ abstract contract OrderSampling is SettlementContext {
         } else {
             _selectAndStore(OrderModel.Side.Bid, true);
         }
-    }
-
-    // TODO: try to make these functions not collide so that
-    // one we dont need resetSelection() => signedOrders batch has both asks/bids and collectionbids
-    function collectAsks() internal {
-        _resetSelection();
-
-        OrderModel.Side side = OrderModel.Side.Ask;
-        bool isCollectionBid = false;
-
-        _selectAndStore(side, isCollectionBid);
-    }
-
-    function collectBids() internal {
-        _resetSelection();
-
-        OrderModel.Side side = OrderModel.Side.Bid;
-        bool isCollectionBid = false;
-
-        _selectAndStore(side, isCollectionBid);
-    }
-
-    function collectCollectionBids() internal {
-        _resetSelection();
-
-        OrderModel.Side side = OrderModel.Side.Bid;
-        bool isCollectionBid = true;
-
-        _selectAndStore(side, isCollectionBid);
     }
 
     function _resetSelection() internal {
@@ -126,7 +95,7 @@ abstract contract OrderSampling is SettlementContext {
     ) internal view returns (uint256[] memory) {
         uint256 max = DNFT(collection).totalSupply();
 
-        uint256 seed = orderSalt(collection, side, isCollectionBid, seedSalt);
+        uint256 seed = _orderSalt(collection, side, isCollectionBid, epoch);
 
         // Safe: uint8(seed) % 6 ∈ [0..5], +2 ⇒ [2..7]
         // forge-lint: disable-next-line(unsafe-typecast)
@@ -150,28 +119,83 @@ abstract contract OrderSampling is SettlementContext {
             address collection = collections[i];
             uint256[] storage tokens = collectionSelected[collection];
 
-            uint256 seed = orderSalt(
-                collection,
-                side,
-                isCollectionBid,
-                seedSalt
-            );
+            uint256 seed = _orderSalt(collection, side, isCollectionBid, epoch);
 
             for (uint256 j = 0; j < tokens.length; j++) {
                 uint256 tokenId = tokens[j];
 
-                orders[k++] = makeOrder(
+                orders[k++] = _makeOrder(
                     side,
                     isCollectionBid,
                     collection,
                     tokenId,
-                    weth,
-                    MarketSim.priceOf(collection, tokenId, seed),
-                    settlementContract
+                    MarketSim.priceOf(collection, tokenId, seed)
                 );
             }
         }
 
         return orders;
+    }
+
+    function _makeOrder(
+        OrderModel.Side side,
+        bool isCollectionBid,
+        address collection,
+        uint256 tokenId,
+        uint256 price
+    ) internal view returns (OrderModel.Order memory) {
+        address owner = IERC721(collection).ownerOf(tokenId);
+
+        uint256 j = 0;
+
+        uint256 seed = uint256(
+            keccak256(abi.encode(collection, owner, side, isCollectionBid, j))
+        );
+
+        while (
+            ISettlementEngine(settlementContract).isUserOrderNonceInvalid(
+                owner,
+                _nonce(seed, j)
+            )
+        ) {
+            j++;
+        }
+
+        return
+            OrderModel.Order({
+                side: side,
+                isCollectionBid: isCollectionBid,
+                collection: collection,
+                tokenId: tokenId,
+                currency: weth,
+                price: price,
+                actor: owner,
+                start: uint64(block.timestamp),
+                end: uint64(block.timestamp + 7 days),
+                nonce: _nonce(seed, j)
+            });
+    }
+
+    // === PRIVATE FUNCTIONS ===
+
+    function _nonce(
+        uint256 seed,
+        uint256 attempt
+    ) private pure returns (uint256) {
+        return uint256(keccak256(abi.encode(seed, attempt)));
+    }
+
+    function _orderSalt(
+        address collection,
+        OrderModel.Side side,
+        bool isCollectionBid,
+        uint256 saltSeed
+    ) internal pure returns (uint256) {
+        return
+            uint256(
+                keccak256(
+                    abi.encode(collection, side, isCollectionBid, saltSeed)
+                )
+            );
     }
 }

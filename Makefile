@@ -115,7 +115,7 @@ dev-open:
 dev-history:
 	@echo "📊 Settling historical orders..."
 	forge script $(DEV_STATE_DONE)/SettleHistory.s.sol \
-		--sig "runWeek(uint256)" 1 \
+		--sig "runWeek(uint256)" 4 \
 		$(FORGE_COMMON_FLAGS)
 
 # ───────────────────────────────────────────────

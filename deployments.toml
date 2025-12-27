@@ -10,6 +10,6 @@ nft_1 = "0xaa38b98b510781C6c726317FEb12610BEe90aE20"
 
 [1337.uint]
 nft_count = 2
-final_week_Idx = 4;
-history_start_ts=1761257183
-now_ts=1766342442
+final_week_Idx = 4
+history_start_ts = 1761257183
+now_ts = 1766342442

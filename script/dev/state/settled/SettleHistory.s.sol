@@ -8,8 +8,8 @@ import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 // scripts
 import {BaseDevScript} from "dev/BaseDevScript.s.sol";
 import {DevConfig} from "dev/DevConfig.s.sol";
-import {OrderSampling} from "dev/logic/OrderSampling.s.sol";
 
+import {OrderSampling} from "dev/logic/OrderSampling.s.sol";
 import {SettlementSigner} from "dev/logic/SettlementSigner.s.sol";
 
 // types
@@ -27,9 +27,6 @@ contract SettleHistory is
     // ctx
     uint256 private weekIdx;
 
-    address weth;
-
-    address settlementContract;
     bytes32 domainSeparator;
 
     SignedOrder[] signed;
@@ -53,15 +50,20 @@ contract SettleHistory is
     // === SETUP / ENVIRONMENT ===
 
     function _bootstrap() internal {
-        settlementContract = readSettlementContract();
-        weth = readWeth();
+        logSection("BOOTSTRAP");
+
+        address settlementContract = readSettlementContract();
+        address weth = readWeth();
 
         address[] memory collections = readCollections();
 
         domainSeparator = ISettlementEngine(settlementContract)
             .DOMAIN_SEPARATOR();
 
-        _initOrderSampling(0, settlementContract, weth, 0, collections);
+        _initOrderSampling(weekIdx, collections, settlementContract, weth);
+        // _initSettlementContext(settlementContract, weth);
+
+        _loadParticipants();
     }
 
     function _handleSigned() internal {
@@ -76,7 +78,7 @@ contract SettleHistory is
     }
 
     function _collect() internal {
-        for (uint256 i = 0; i < uint256(SampleMode.COUNT_); i++) {
+        for (uint256 i = 0; i < 1; i++) {
             SampleMode mode = SampleMode(i);
 
             collect(mode);
@@ -141,7 +143,8 @@ contract SettleHistory is
     }
 
     function _isFinalWeek() private view returns (bool) {
-        return config.get("final_week_idx").toUint256() == weekIdx;
+        return weekIdx == 4;
+        // config.get("final_week_idx").toUint256();
     }
 
     function _jsonFilePath() private view returns (string memory) {
