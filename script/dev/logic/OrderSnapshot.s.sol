@@ -10,7 +10,7 @@ import {SignatureOps as SigOps} from "orderbook/libs/SignatureOps.sol";
 // types
 import {SignedOrder} from "dev/state/Types.sol";
 
-contract OpenListings is Script {
+contract OrderSnapshot is Script {
     function persistSignedOrders(
         SignedOrder[] memory signedOrders,
         string memory path

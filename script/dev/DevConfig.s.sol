@@ -6,6 +6,14 @@ import {Config} from "forge-std/Config.sol";
 // TODO: https://getfoundry.sh/reference/cheatcodes/write-toml/
 // learn about json nesting in .toml
 
+// NOTE:
+// order_engine currently fulfills multiple roles:
+// - settlement engine
+// - signature verifier
+// - nft transfer authority
+// - allowance spender
+// These are intentionally split into separate accessors
+// to allow role separation later without refactoring scripts.
 contract DevConfig is Config {
     constructor() {
         _loadConfig("deployments.toml", true);
@@ -21,21 +29,21 @@ contract DevConfig is Config {
 
     // contract implementing methods `DOMAIN_SEPARATOR()` and `isUserNonceInvalid()`
     function readSettlementContract() internal view returns (address) {
-        return config.get("order_engine").toAddress();
+        return _orderEngine();
     }
 
     // contract implementing signature verification
     function readSignatureVerifier() internal view returns (address) {
-        return config.get("order_engine").toAddress();
+        return _orderEngine();
     }
 
     // contract working as the nft transferer
     function readNftTransferAuth() internal view returns (address) {
-        return config.get("order_engine").toAddress();
+        return _orderEngine();
     }
 
     function readAllowanceSpender() internal view returns (address) {
-        return config.get("order_engine").toAddress();
+        return _orderEngine();
     }
 
     function readStartTs() internal view returns (uint256) {
@@ -55,5 +63,9 @@ contract DevConfig is Config {
                 .toAddress();
         }
         return nfts;
+    }
+
+    function _orderEngine() private view returns (address) {
+        return config.get("order_engine").toAddress();
     }
 }
