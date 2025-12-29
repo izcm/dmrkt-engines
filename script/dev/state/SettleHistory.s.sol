@@ -30,100 +30,41 @@ contract SettleHistory is
     BaseDevScript,
     DevConfig
 {
+    using OrderModel for OrderModel.Order;
+
     // ctx
     uint256 private weekIdx;
-
-    bytes32 private domainSeparator;
 
     // === ENTRYPOINTS ===
 
     function runWeek(uint256 _weekIdx) external {
-        logSection("SETTLE HISTORY");
-        console.log("Week: %s", _weekIdx);
-        logSeparator();
+        // === LOAD CONFIG & SETUP ===
+
+        address settlementContract = readSettlementContract();
+        address weth = readWeth();
+
+        bytes32 domainSeparator = ISettlementEngine(settlementContract)
+            .DOMAIN_SEPARATOR();
+
+        _loadParticipants();
 
         weekIdx = _weekIdx;
-        _bootstrap();
         _jumpToWeek();
+
+        logSection("SETTLE HISTORY");
+        console.log("Week: %s", weekIdx);
+        logSeparator();
 
         address[] memory collections = readCollections();
         console.log("Collections: %s", collections.length);
 
-        OrderModel.Order[] memory orders;
+        // === BUILD ORDERS ===
 
-        {
-            // === SELECT TOKENIDS ===
-            Selection[] memory selectionAsks = _collect(
-                SampleMode.Ask,
-                collections
-            );
-
-            Selection[] memory selectionBids = _collect(
-                SampleMode.Bid,
-                collections
-            );
-
-            Selection[] memory selectionCbs = _collect(
-                SampleMode.CollectionBid,
-                collections
-            );
-
-            // === ALLOCATE MEMORY ===
-            uint256 count;
-
-            for (uint256 i = 0; i < selectionAsks.length; i++) {
-                count += selectionAsks[i].tokenIds.length;
-            }
-            for (uint256 i = 0; i < selectionBids.length; i++) {
-                count += selectionBids[i].tokenIds.length;
-            }
-            for (uint256 i = 0; i < selectionCbs.length; i++) {
-                count += selectionCbs[i].tokenIds.length;
-            }
-
-            console.log("Total orders to create: %s", count);
-            orders = new OrderModel.Order[](count);
-
-            uint256 idx;
-
-            // === MAKE ORDERS ===
-
-            for (uint256 i = 0; i < selectionAsks.length; i++) {
-                Selection memory sel = selectionAsks[i];
-                for (uint256 j = 0; j < sel.tokenIds.length; j++) {
-                    orders[idx++] = makeOrder(
-                        OrderModel.Side.Ask,
-                        false,
-                        sel.collection,
-                        sel.tokenIds[j]
-                    );
-                }
-            }
-
-            for (uint256 i = 0; i < selectionBids.length; i++) {
-                Selection memory sel = selectionBids[i];
-                for (uint256 j = 0; j < sel.tokenIds.length; j++) {
-                    orders[idx++] = makeOrder(
-                        OrderModel.Side.Bid,
-                        false,
-                        sel.collection,
-                        sel.tokenIds[j]
-                    );
-                }
-            }
-
-            for (uint256 i = 0; i < selectionCbs.length; i++) {
-                Selection memory sel = selectionCbs[i];
-                for (uint256 j = 0; j < sel.tokenIds.length; j++) {
-                    orders[idx++] = makeOrder(
-                        OrderModel.Side.Bid,
-                        true,
-                        sel.collection,
-                        sel.tokenIds[j]
-                    );
-                }
-            }
-        }
+        OrderModel.Order[] memory orders = _buildOrders(
+            settlementContract,
+            weth,
+            collections
+        );
 
         // === SIGN ORDERS ===
 
@@ -162,25 +103,61 @@ contract SettleHistory is
         if (_isFinalWeek()) {
             // export as JSON
             persistSignedOrders(signed, _jsonFilePath());
-        } else {}
+        } else {
+            // match each mode with a fill
+            matchOrdersWithFill(orders);
+        }
     }
 
     function finalize() external {
-        _bootstrap();
         _jumpToNow();
     }
 
-    // === SETUP / ENVIRONMENT ===
+    function matchOrdersWithFill(
+        OrderModel.Order[] memory orders
+    ) internal view {
+        OrderModel.Fill[] memory fills = new OrderModel.Fill[](orders.length);
 
-    function _bootstrap() internal {
-        address sc = readSettlementContract();
-        address weth = readWeth();
-
-        domainSeparator = ISettlementEngine(sc).DOMAIN_SEPARATOR();
-
-        _initOrderSampling(sc, weth);
-        _loadParticipants();
+        for (uint256 i = 0; i < orders.length; i++) {
+            fills[i] = _matchOrderWithFill(orders[i]);
+        }
     }
+
+    function _matchOrderWithFill(
+        OrderModel.Order memory order
+    ) internal view returns (OrderModel.Fill memory fill) {
+        if (order.isAsk()) {
+            _fillAsk(order);
+        } else if (order.isBid()) {
+            _fillBid(order);
+        } else {
+            revert("Invalid Order Side");
+        }
+    }
+
+    function _fillAsk(OrderModel.Order memory order) internal view {
+        // read price
+        uint256 price = order.price;
+        // fetch some participant
+        address ps = participant(0); // TODO: fix this
+        // check marketplace weth allowance
+
+        // read participant PK
+        // broadcast as participant
+        // call settle
+    }
+
+    function _fillBid(OrderModel.Order memory order) internal view {
+        if (order.isCollectionBid) {
+            _fillCollectionBid(order);
+        } else {
+            _fillRegularBid(order);
+        }
+    }
+
+    function _fillRegularBid(OrderModel.Order memory order) internal view {}
+
+    function _fillCollectionBid(OrderModel.Order memory order) internal view {}
 
     function _sortByNonce(SignedOrder[] memory arr) internal pure {
         uint256 n = arr.length;
@@ -227,6 +204,91 @@ contract SettleHistory is
                 tokenIds: tokens
             });
         }
+    }
+
+    function _buildOrders(
+        address settlementContract,
+        address weth,
+        address[] memory collections
+    ) internal view returns (OrderModel.Order[] memory orders) {
+        Selection[] memory selectionAsks = _collect(
+            SampleMode.Ask,
+            collections
+        );
+        Selection[] memory selectionBids = _collect(
+            SampleMode.Bid,
+            collections
+        );
+        Selection[] memory selectionCbs = _collect(
+            SampleMode.CollectionBid,
+            collections
+        );
+
+        uint256 count;
+        for (uint256 i; i < selectionAsks.length; i++)
+            count += selectionAsks[i].tokenIds.length;
+        for (uint256 i; i < selectionBids.length; i++)
+            count += selectionBids[i].tokenIds.length;
+        for (uint256 i; i < selectionCbs.length; i++)
+            count += selectionCbs[i].tokenIds.length;
+
+        orders = new OrderModel.Order[](count);
+        uint256 idx;
+
+        idx = _appendOrders(
+            orders,
+            idx,
+            OrderModel.Side.Ask,
+            false,
+            selectionAsks,
+            weth,
+            settlementContract
+        );
+
+        idx = _appendOrders(
+            orders,
+            idx,
+            OrderModel.Side.Bid,
+            false,
+            selectionBids,
+            weth,
+            settlementContract
+        );
+
+        _appendOrders(
+            orders,
+            idx,
+            OrderModel.Side.Bid,
+            true,
+            selectionCbs,
+            weth,
+            settlementContract
+        );
+    }
+
+    function _appendOrders(
+        OrderModel.Order[] memory orders,
+        uint256 idx,
+        OrderModel.Side side,
+        bool isCollectionBid,
+        Selection[] memory selections,
+        address weth,
+        address settlementContract
+    ) internal view returns (uint256) {
+        for (uint256 i; i < selections.length; i++) {
+            Selection memory sel = selections[i];
+            for (uint256 j; j < sel.tokenIds.length; j++) {
+                orders[idx++] = makeOrder(
+                    side,
+                    isCollectionBid,
+                    sel.collection,
+                    sel.tokenIds[j],
+                    weth,
+                    settlementContract
+                );
+            }
+        }
+        return idx;
     }
 
     // === TIME HELPERS ===

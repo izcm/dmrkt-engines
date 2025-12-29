@@ -14,18 +14,6 @@ import {IERC721} from "@openzeppelin/interfaces/IERC721.sol";
 import {ISettlementEngine} from "periphery/interfaces/ISettlementEngine.sol";
 
 abstract contract OrderSampling is Script {
-    address private weth;
-    address private settlementContract;
-
-    // any child contract must call this method
-    function _initOrderSampling(
-        address _settlementContract,
-        address _weth
-    ) internal {
-        settlementContract = _settlementContract;
-        weth = _weth;
-    }
-
     function orderSalt(
         address collection,
         OrderModel.Side side,
@@ -59,7 +47,9 @@ abstract contract OrderSampling is Script {
         OrderModel.Side side,
         bool isCollectionBid,
         address collection,
-        uint256 tokenId
+        uint256 tokenId,
+        address currency,
+        address settlementContract
     ) internal view returns (OrderModel.Order memory) {
         address owner = IERC721(collection).ownerOf(tokenId);
 
@@ -82,7 +72,7 @@ abstract contract OrderSampling is Script {
                 isCollectionBid: isCollectionBid,
                 collection: collection,
                 tokenId: tokenId,
-                currency: weth,
+                currency: currency,
                 price: MarketSim.priceOf(collection, tokenId, seed),
                 actor: owner,
                 start: uint64(block.timestamp),

@@ -17,8 +17,6 @@ DEV_SETUP       := $(DEV_ROOT)/genesis
 DEV_BOOTSTRAP   := $(DEV_SETUP)/bootstrap
 DEV_LOGIC       := $(DEV_ROOT)/logic
 DEV_STATE       := $(DEV_ROOT)/state
-DEV_STATE_OPEN  := $(DEV_STATE)/open
-DEV_STATE_DONE  := $(DEV_STATE)/settled
 
 # entrypoints
 DEPLOY_ORDER_ENGINE := $(SCRIPT_ROOT)/DeployOrderEngine.s.sol
@@ -107,14 +105,9 @@ dev-approve:
 #   DEV — STATE / SCENARIOS
 # ───────────────────────────────────────────────
 
-dev-open:
-	@echo "📬 Opening listings..."
-	forge script $(DEV_STATE_OPEN)/OpenListings.s.sol \
-		$(FORGE_COMMON_FLAGS)
-
 dev-history:
 	@echo "📊 Settling historical orders..."
-	forge script $(DEV_STATE_DONE)/SettleHistory.s.sol \
+	forge script $(DEV_STATE)/SettleHistory.s.sol \
 		--sig "runWeek(uint256)" 4 \
 		$(FORGE_COMMON_FLAGS)
 

@@ -35,6 +35,10 @@ abstract contract BaseDevScript is Script {
         return keys;
     }
 
+    function participant(uint256 idx) internal view returns (address) {
+        return _participants[idx];
+    }
+
     function participants() internal view returns (address[] memory) {
         return _participants;
     }
