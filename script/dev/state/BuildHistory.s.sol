@@ -230,19 +230,11 @@ contract BuildHistory is
     }
 
     function _resolveStartDate(uint256 seed) internal view returns (uint64) {
-        uint64 epochAnchor = _epochAnchor();
-
-        uint64 offset = _resolveTimeOffset(seed);
-
-        return uint64(epochAnchor - offset);
+        return _resolveDate(seed, true);
     }
 
     function _resolveEndDate(uint256 seed) internal view returns (uint64) {
-        uint64 epochAnchor = _epochAnchor();
-
-        uint64 offset = _resolveTimeOffset(seed);
-
-        return uint64(epochAnchor + offset);
+        return _resolveDate(seed, false);
     }
 
     function _resolveActor(
@@ -282,6 +274,7 @@ contract BuildHistory is
     }
 
     // === PRIVATE FUNCTIONS ===
+
     function _resolveTimeOffset(uint256 seed) private view returns (uint64) {
         // forge-lint: disable-next-line(unsafe-typecast)
         return uint64((seed % epochSize) + MIN_OFFSET_DATES); // safe because date
@@ -289,5 +282,15 @@ contract BuildHistory is
     function _epochAnchor() private view returns (uint64) {
         // forge-lint: disable-next-line(unsafe-typecast)
         return uint64(block.timestamp + (epoch * epochSize)); // safe because date
+    }
+
+    function _resolveDate(
+        uint256 seed,
+        bool isStart
+    ) private view returns (uint64) {
+        uint64 anchor = _epochAnchor();
+        uint64 offset = _resolveTimeOffset(seed);
+
+        return isStart ? anchor - offset : anchor + offset;
     }
 }
