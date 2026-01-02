@@ -34,7 +34,7 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
             OrderModel.Order memory order,
             OrderModel.Fill memory fill,
             SigOps.Signature memory sig
-        ) = _setupBasicRevertTest("invalid_sender");
+        ) = _buildBasicRevertTest("invalid_sender");
 
         _expectSettleRevert(
             fill,
@@ -91,7 +91,7 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
             OrderModel.Order memory order,
             OrderModel.Fill memory fill,
             SigOps.Signature memory sig
-        ) = _setupBasicRevertTest("not_started_order");
+        ) = _buildBasicRevertTest("not_started_order");
 
         order.start = uint64(block.timestamp + 1 days);
 
@@ -110,7 +110,7 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
             OrderModel.Order memory order,
             OrderModel.Fill memory fill,
             SigOps.Signature memory sig
-        ) = _setupBasicRevertTest("expired_order");
+        ) = _buildBasicRevertTest("expired_order");
 
         order.start = 1;
         order.end = 2;
@@ -137,7 +137,7 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
             OrderModel.Fill memory fill,
             SigOps.Signature memory sig,
 
-        ) = _setupSignedRevertTest("sig_mismatch");
+        ) = _buildSignedRevertTest("sig_mismatch");
 
         // tamper price
         order.price = 10;
@@ -162,7 +162,7 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
             OrderModel.Fill memory fill,
             SigOps.Signature memory sig,
 
-        ) = _setupSignedRevertTest("reuse_nonce");
+        ) = _buildSignedRevertTest("reuse_nonce");
 
         legitimizeSettlement(fill, order);
 
@@ -193,7 +193,7 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
         (, SigOps.Signature memory sig) = signOrder(order, signerPk);
         OrderModel.Fill memory fill = makeFill(actors.fill);
 
-        // `legitimizeSettlement` mints nft while MockUnsupported does not mint implement `mint`
+        // `legitimizeSettlement` mints nfts which is outside test scope
         // => explicitly do erc20 approvals
         wethDealAndApproveSpenderAllowance(actors.fill, order.price);
 
@@ -222,7 +222,7 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
         orderEngine.settle(fill, order, sig);
     }
 
-    function _setupBasicRevertTest(
+    function _buildBasicRevertTest(
         string memory seed
     )
         internal
@@ -240,7 +240,7 @@ contract OrderEngineSettleRevertsTest is OrderEngineSettleBase {
         sig = dummySig();
     }
 
-    function _setupSignedRevertTest(
+    function _buildSignedRevertTest(
         string memory seed
     )
         internal

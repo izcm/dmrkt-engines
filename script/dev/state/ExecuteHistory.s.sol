@@ -80,10 +80,12 @@ contract ExecuteHistory is
                 continue;
             }
 
-            bool isInvalidNonce = ISettlementEngine(orderSettler)
-                .isUserOrderNonceInvalid(order.actor, order.nonce);
-
-            if (isInvalidNonce) {
+            if (
+                ISettlementEngine(orderSettler).isUserOrderNonceInvalid(
+                    order.actor,
+                    order.nonce
+                )
+            ) {
                 invalidNonce++;
                 continue;
             }
@@ -104,13 +106,6 @@ contract ExecuteHistory is
         console.log("Total Skipped: %s", count - executedCount);
 
         logSeparator();
-    }
-
-    function _isValidSettlement(
-        OrderModel.Fill memory f,
-        OrderModel.Order memory o
-    ) internal view returns (bool) {
-        return (validTimestamps(o) && validNftOwnership(f, o));
     }
 
     function _produceFill(
