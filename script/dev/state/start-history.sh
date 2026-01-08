@@ -69,9 +69,9 @@ do
         fi
 
     done
-    echo "📊 Epoch $epoch summary:"
-    echo "   ✅ Executed: $success"
-    echo "   ❌ Reverted: $fail"
+    echo "Epoch $epoch summary:"
+    echo -e "   Executed: $success"
+    echo -e "   Reverted: $fail"
 
     sleep $SLEEP_SECONDS
 done

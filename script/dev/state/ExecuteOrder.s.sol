@@ -24,8 +24,7 @@ import {ISettlementEngine} from "periphery/interfaces/ISettlementEngine.sol";
 // types
 import {SignedOrder, Selection} from "dev/state/Types.sol";
 
-// TODO: have a seperate bash script that sets nowts() after all scripts finish
-contract ExecuteHistory is
+contract ExecuteOrder is
     OrdersJson,
     FillBid,
     SettlementValidation,
