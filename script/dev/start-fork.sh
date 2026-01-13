@@ -5,7 +5,7 @@ pkill anvil 2>/dev/null
 
 TOML="./pipeline.toml"
 
-FORK_START_BLOCK=$(awk -F ' ' '$1=="fock_start_block" { print $3 }' $TOML)
+FORK_START_BLOCK=$(awk -F ' ' '$1=="fork_start_block" { print $3 }' $TOML)
 
 # Start a fresh fork
 # https://getfoundry.sh/anvil/reference/anvil/

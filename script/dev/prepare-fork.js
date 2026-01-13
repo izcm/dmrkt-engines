@@ -83,34 +83,42 @@ const findBlockBefore = async (secondsAgo) => {
 
 const writePipelineWindowToml = async ({
   path,
-  pipelineStartTs,
-  pipelineEndTs,
-  forkBlockNumber,
+  windowStart,
+  windowEnd,
+  forkStartBlock,
 }) => {
   let toml = await fs.readFile(path, "utf8");
 
-  // regex: grab the [1337.uint] block only
+  const sectionHeader = "[1337.uint]";
   const sectionRegex = /\[1337\.uint\][\s\S]*?(?=\n\[|$)/;
 
-  const match = toml.match(sectionRegex);
+  let section;
 
-  if (!match) {
-    throw new Error("Failed to fetch timestamps: missing {1337.uint] section");
+  if (sectionRegex.test(toml)) {
+    // [1337].uint exists
+    section = toml.match(sectionRegex)[0];
+  } else {
+    // section doesn't exist => append it
+    section = `${sectionHeader}\n`;
   }
-
-  let section = match[0];
 
   section = section
     .replace(/pipeline_start_ts\s*=.*\n?/, "")
     .replace(/pipeline_end_ts\s*=.*\n?/, "")
-    .replace(/fock_start_block\s*=.*\n?/, "");
+    .replace(/fork_start_block\s*=.*\n?/, "");
 
   section +=
-    `pipeline_start_ts = ${pipelineStartTs}\n` +
-    `pipeline_end_ts = ${pipelineEndTs}\n` +
-    `fock_start_block = ${forkBlockNumber}\n`;
+    `pipeline_start_ts = ${windowStart}\n` +
+    `pipeline_end_ts = ${windowEnd}\n` +
+    `fork_start_block = ${forkStartBlock}\n`;
 
-  toml = toml.replace(sectionRegex, section);
+  if (sectionRegex.test(toml)) {
+    // replace existing values
+    toml = toml.replace(sectionRegex, section);
+  } else {
+    // append section header + values
+    toml += `${toml.endsWith("\n") ? "" : "\n"}\n${section}`;
+  }
 
   await fs.writeFile(path, toml);
 };
@@ -125,9 +133,9 @@ const pipelineEndTs = pipelineEndTsArg ?? Math.floor(Date.now() / 1000);
 
 await writePipelineWindowToml({
   path: tomlFile,
-  pipelineStartTs,
-  pipelineEndTs,
-  forkBlockNumber: block.number,
+  windowStart: pipelineStartTs,
+  windowEnd: pipelineEndTs,
+  forkStartBlock: block.number,
 });
 
 // === logs ===
