@@ -14,4 +14,4 @@ RUN forge build
 # RUN forge test
 
 # CMD ["bash"]
-CMD ["make", "dev-bootstrap"]
+CMD ["make", "dev-execute-pipeline"]

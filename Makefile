@@ -61,12 +61,8 @@ FORGE_COMMON_FLAGS = \
 # assumes pipeline.toml contains:
 #	1. weth address
 # 	2. pipeline end + start timestamps
-dev-bootstrap: pipeline-setup
+dev-execute-pipeline: pipeline-setup dev-run-epochs
 	@echo "🚀 Dev environment ready"
-
-# assumes pipeline.toml contains:
-#	1. EPOCH_COUNT
-dev-history: dev-run-epochs
 
 # ───────────────────────────────────────────────
 #   DEV — HIGH-LEVEL PIPELINES
@@ -104,22 +100,22 @@ dev-prepare:
 
 dev-bootstrap-accounts:
 	@echo "💻 Bootstrapping dev accounts..."
-	forge script $(DEV_BOOTSTRAP)/BootstrapAccounts.s.sol \
+	@forge script $(DEV_BOOTSTRAP)/BootstrapAccounts.s.sol \
 		$(FORGE_COMMON_FLAGS)
 
 dev-deploy-core:
 	@echo "🧾 Deploying core contracts..."
-	forge script $(DEV_SETUP)/DeployCore.s.sol \
+	@forge script $(DEV_SETUP)/DeployCore.s.sol \
 		$(FORGE_COMMON_FLAGS)
 
 dev-bootstrap-nfts:
 	@echo "👾 Bootstrapping NFTs..."
-	forge script $(DEV_BOOTSTRAP)/BootstrapNFTs.s.sol \
+	@forge script $(DEV_BOOTSTRAP)/BootstrapNFTs.s.sol \
 		$(FORGE_COMMON_FLAGS)
 
 dev-approve:
 	@echo "✔ Executing approvals..."
-	forge script $(DEV_BOOTSTRAP)/Approve.s.sol \
+	@forge script $(DEV_BOOTSTRAP)/Approve.s.sol \
 		$(FORGE_COMMON_FLAGS)
 
 # ───────────────────────────────────────────────
